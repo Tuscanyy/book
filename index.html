@@ -2,14 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>2026 Reading Tracker (Debug)</title>
+<title>2026 Reading Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 font-sans p-6">
 
-<h1 class="text-3xl font-bold mb-6 text-center">📚 2026 Reading Tracker (Debug)</h1>
+<h1 class="text-3xl font-bold mb-6 text-center">📚 2026 Reading Tracker</h1>
+
+<!-- Reading progress bar -->
+<div id="readProgressBar" class="mb-6"></div>
+
+<!-- Fiction vs Non-Fiction bar -->
+<div id="fictionBar" class="mb-6"></div>
 
 <!-- Stats Section -->
 <div id="stats" class="mb-6 text-center"></div>
@@ -19,6 +25,9 @@
 <canvas id="genreChart"></canvas>
 </div>
 
+<!-- Currently reading -->
+<div id="currentlyReading" class="mb-6"></div>
+
 <!-- Books List -->
 <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
@@ -27,8 +36,9 @@
 
 <script>
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
+const PLACEHOLDER_COVER = "https://via.placeholder.com/128x192?text=No+Cover";
 
-// Helper to fetch Open Library data
+// Helper: fetch Open Library info
 async function fetchBookDetails(title, author) {
     if(!title) return null;
     const query = encodeURIComponent(title + (author ? " " + author : ""));
@@ -41,14 +51,15 @@ async function fetchBookDetails(title, author) {
         return {
             cover: book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : "",
             publish_year: book.first_publish_year || "",
-            subjects: book.subject ? book.subject.slice(0,5) : []
+            subjects: book.subject ? book.subject.slice(0,5) : [],
+            genre: book.subject ? book.subject[0] : ""
         };
     } catch(err) {
         return null;
     }
 }
 
-// Fetch CSV and parse into books
+// Fetch CSV and parse into book objects
 async function fetchBooks() {
     const debugDiv = document.getElementById("debug");
     try {
@@ -69,11 +80,12 @@ async function fetchBooks() {
             Rating: row[5] || "",
             Notes: row[6] || "",
             _rowIndex: index+6,
-            cover: "https://via.placeholder.com/128x192?text=Loading..."
+            cover: PLACEHOLDER_COVER,
+            subjects: [],
+            apiGenre: ""
         }));
 
         debugDiv.innerHTML += `<p>Total books parsed: ${books.length}</p>`;
-
         return books;
 
     } catch(err) {
@@ -82,11 +94,10 @@ async function fetchBooks() {
     }
 }
 
-// Render book cards immediately
+// Render book cards
 function renderBooks(books){
     const bookList = document.getElementById("bookList");
     bookList.innerHTML = "";
-
     if(books.length === 0){
         bookList.innerHTML = "<p class='text-center col-span-full'>No books found.</p>";
         return;
@@ -97,7 +108,7 @@ function renderBooks(books){
         card.className = "bg-white p-4 rounded shadow hover:shadow-lg transition flex flex-col items-center";
         card.id = "book-" + book._rowIndex;
         card.innerHTML = `
-            <img src="${book.cover}" class="w-32 h-48 mb-2 object-cover rounded shadow">
+            <img src="${book.cover}" onerror="this.src='${PLACEHOLDER_COVER}'" class="w-32 h-48 mb-2 object-cover rounded shadow">
             <h2 class="font-bold text-lg mb-1 text-center">${book.Book}</h2>
             <p class="text-sm text-center"><strong>Author:</strong> ${book.Author || "Unknown"}</p>
             <p class="text-sm text-center"><strong>Genre:</strong> ${book.Genre || "Unknown"}</p>
@@ -111,7 +122,7 @@ function renderBooks(books){
     });
 }
 
-// Update card with API data
+// Update book card with API data
 function updateBookCard(book){
     const card = document.getElementById("book-" + book._rowIndex);
     if(!card) return;
@@ -123,27 +134,56 @@ function updateBookCard(book){
     subjectsElem.innerHTML = `<strong>Subjects:</strong> ${book.subjects.join(", ") || "-"}`;
 }
 
-// Render stats and chart
-function renderStats(books){
-    const total = books.length;
-    const finished = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
-    const remaining = Math.max(100-finished,0);
+// Render stats, progress bars, and pie chart
+function renderStatsAndCharts(books){
+    // Reading progress bar
+    const totalTarget = 100;
+    const today = new Date();
+    const startOfYear = new Date(today.getFullYear(),0,1);
+    const endOfYear = new Date(today.getFullYear(),11,31);
+    const yearFraction = (today - startOfYear)/(endOfYear-startOfYear);
+    const expectedBooks = Math.floor(totalTarget*yearFraction);
+    const actualFinished = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
+    const percent = Math.min((actualFinished/totalTarget)*100,100);
+    document.getElementById("readProgressBar").innerHTML = `
+        <p class="text-lg font-semibold mb-1">Reading Progress</p>
+        <div class="w-full bg-gray-300 rounded-full h-6">
+            <div class="bg-green-500 h-6 rounded-full" style="width:${percent}%"></div>
+        </div>
+        <p class="text-sm mt-1">Finished: ${actualFinished} / ${totalTarget}. Expected by now: ${expectedBooks}</p>
+    `;
+
+    // Fiction vs Non-Fiction bar
+    const fictionCount = books.filter(b=>b.Genre && b.Genre.toLowerCase().includes("fiction")).length;
+    const nonFictionCount = books.filter(b=>b.Genre && b.Genre.toLowerCase().includes("non-fiction")).length;
+    const totalCount = fictionCount + nonFictionCount;
+    const fictionPercent = totalCount? (fictionCount/totalCount*100):0;
+    const nonFictionPercent = totalCount? (nonFictionCount/totalCount*100):0;
+    document.getElementById("fictionBar").innerHTML = `
+        <p class="text-lg font-semibold mb-1">Fiction vs Non-Fiction</p>
+        <div class="w-full bg-gray-300 rounded-full h-6 flex">
+            <div class="bg-blue-500 h-6 rounded-l" style="width:${fictionPercent}%"></div>
+            <div class="bg-yellow-500 h-6 rounded-r" style="width:${nonFictionPercent}%"></div>
+        </div>
+        <p class="text-sm mt-1">Fiction: ${fictionCount}, Non-Fiction: ${nonFictionCount}</p>
+    `;
+
+    // Stats
     const ratedBooks = books.filter(b=>b.Rating);
     const avgRating = ratedBooks.length ? (ratedBooks.reduce((sum,b)=>sum+Number(b.Rating),0)/ratedBooks.length).toFixed(2) : "-";
-
     document.getElementById("stats").innerHTML = `
-        <p class="text-lg"><strong>Total Books:</strong> ${total}</p>
-        <p class="text-lg"><strong>Finished:</strong> ${finished}</p>
-        <p class="text-lg"><strong>Remaining to 100:</strong> ${remaining}</p>
+        <p class="text-lg"><strong>Total Books:</strong> ${books.length}</p>
+        <p class="text-lg"><strong>Finished:</strong> ${actualFinished}</p>
+        <p class="text-lg"><strong>Remaining to 100:</strong> ${Math.max(100-actualFinished,0)}</p>
         <p class="text-lg"><strong>Average Rating:</strong> ${avgRating}</p>
     `;
 
+    // Pie chart with genres
     const genreCount = {};
     books.forEach(b=>{
-        const g = b.Genre || "Unknown";
+        let g = b.apiGenre || b.Genre || "Unknown";
         genreCount[g] = (genreCount[g]||0)+1;
     });
-
     new Chart(document.getElementById("genreChart"),{
         type:'pie',
         data:{
@@ -160,26 +200,48 @@ function renderStats(books){
     });
 }
 
+// Render currently reading
+function renderCurrentlyReading(books){
+    const currentDiv = document.getElementById("currentlyReading");
+    const currentlyReadingBooks = books.filter(b=>!b.Read || b.Read.toLowerCase()!=="finished");
+    if(currentlyReadingBooks.length === 0){
+        currentDiv.innerHTML = "";
+        return;
+    }
+    currentDiv.innerHTML = `<p class="text-lg font-semibold mb-2">📖 Currently Reading</p>`;
+    currentlyReadingBooks.forEach(b=>{
+        currentDiv.innerHTML += `<p class="mb-1">${b.Book} by ${b.Author || "Unknown"}</p>`;
+    });
+}
+
 // Main init
 async function init(){
     const books = await fetchBooks();
-    renderStats(books);
-    renderBooks(books);
 
-    // Fetch Open Library details asynchronously
-    books.forEach(async (book)=>{
+    // Move currently reading to top
+    const notFinished = books.filter(b=>!b.Read || b.Read.toLowerCase()!=="finished");
+    const finished = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished");
+    const orderedBooks = [...notFinished, ...finished];
+
+    renderCurrentlyReading(orderedBooks);
+    renderStatsAndCharts(orderedBooks);
+    renderBooks(orderedBooks);
+
+    // Fetch Open Library details async
+    orderedBooks.forEach(async (book)=>{
         const details = await fetchBookDetails(book.Book, book.Author);
         if(details){
             book.cover = details.cover || book.cover;
             book.publish_year = details.publish_year || "";
             book.subjects = details.subjects || [];
+            book.apiGenre = details.genre || "";
         }
         updateBookCard(book);
+        renderStatsAndCharts(orderedBooks); // update pie chart as data comes in
     });
 }
 
 init();
 </script>
-
 </body>
 </html>
