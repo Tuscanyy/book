@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>2026 Reading Tracker Debug</title>
+  <title>2026 Reading Tracker</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 font-sans p-6">
 
-  <h1 class="text-3xl font-bold mb-6 text-center">📚 2026 Reading Tracker Debug</h1>
+  <h1 class="text-3xl font-bold mb-6 text-center">📚 2026 Reading Tracker</h1>
 
   <!-- Stats Section -->
   <div id="stats" class="mb-6 text-center"></div>
@@ -26,56 +26,51 @@
   <div id="rawData" class="bg-white p-4 rounded shadow overflow-x-auto text-sm"></div>
 
   <script>
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/1Jy7tWIRsD_Wwp8sN2octGIJFKWTwtVo4jNF1Rqabtv8/gviz/tq?tqx=out:json&sheet=2026";
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
 
-    // Fetch books safely
+    // Helper: parse CSV into array of objects
+    function parseCSV(text) {
+      const lines = text.trim().split("\n");
+      const headers = lines[0].split(",").map(h => h.trim());
+      const rows = lines.slice(1).map((line, rowIndex) => {
+        const cells = line.split(",").map(c => c.trim());
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = cells[i] || "");
+        obj._rowIndex = rowIndex + 2; // include header row offset
+        return obj;
+      });
+      return rows;
+    }
+
     async function fetchBooks() {
       try {
-        const res = await fetch(SHEET_URL);
-        let text = await res.text();
+        const res = await fetch(CSV_URL);
+        if (!res.ok) throw new Error(res.statusText);
+        const text = await res.text();
+        const books = parseCSV(text);
 
-        // Remove GViz wrapper
-        text = text.replace(/^.*?\(/, "").slice(0, -2);
-        const data = JSON.parse(text);
-
-        const headers = data.table.cols.map(c => c.label || "");
-        const books = data.table.rows.map((r, rowIndex) => {
-          const book = {};
-          r.c.forEach((cell, i) => {
-            if(headers[i]) {
-              book[headers[i]] = cell && cell.v !== undefined ? cell.v : "";
-            }
-          });
-          book._rowIndex = rowIndex + 1;
-          return book;
-        });
-
-        // Display raw data at the bottom for verification
+        // Show first 10 rows for verification
         const rawContainer = document.getElementById("rawData");
-        rawContainer.innerHTML = books.slice(0, 10).map(b => JSON.stringify(b, null, 2)).join("<br><br>");
+        rawContainer.innerHTML = books.slice(0,10).map(b => JSON.stringify(b, null, 2)).join("<br><br>");
 
         return books;
-      } catch (err) {
-        console.error("Failed to fetch or parse sheet:", err);
+      } catch(err) {
+        console.error("Failed to fetch spreadsheet:", err);
         document.getElementById("rawData").innerText = "Failed to load spreadsheet.";
         return [];
       }
     }
 
-    // Render book cards
     function renderBooks(books) {
       const bookList = document.getElementById("bookList");
       bookList.innerHTML = "";
-
-      if(books.length === 0){
-        bookList.innerHTML = "<p class='text-center col-span-full'>No books found. Check your spreadsheet link or make it public.</p>";
+      if (books.length === 0) {
+        bookList.innerHTML = "<p class='text-center col-span-full'>No books found.</p>";
         return;
       }
-
       books.forEach(book => {
         const card = document.createElement("div");
         card.className = "bg-white p-4 rounded shadow hover:shadow-lg transition";
-
         card.innerHTML = `
           <h2 class="font-bold text-lg mb-1">${book.Book || "Untitled Book"}</h2>
           <p class="text-sm"><strong>Author:</strong> ${book.Author || "Unknown"}</p>
@@ -90,13 +85,12 @@
       });
     }
 
-    // Render stats
     function renderStats(books) {
       const total = books.length;
       const finished = books.filter(b => b.Read && b.Read.toLowerCase() === "finished").length;
       const remaining = Math.max(100 - finished, 0);
       const ratedBooks = books.filter(b => b.Rating);
-      const avgRating = ratedBooks.length ? (ratedBooks.reduce((sum, b) => sum + Number(b.Rating), 0) / ratedBooks.length).toFixed(2) : "-";
+      const avgRating = ratedBooks.length ? (ratedBooks.reduce((sum, b) => sum + Number(b.Rating), 0)/ratedBooks.length).toFixed(2) : "-";
 
       document.getElementById("stats").innerHTML = `
         <p class="text-lg"><strong>Total Books:</strong> ${total}</p>
@@ -113,27 +107,28 @@
         genreCount[g] = (genreCount[g] || 0) + 1;
       });
 
-      new Chart(document.getElementById('genreChart'), {
+      new Chart(document.getElementById("genreChart"), {
         type: 'pie',
         data: {
           labels: Object.keys(genreCount),
           datasets: [{
-            label: 'Genre Distribution',
+            label: "Genre Distribution",
             data: Object.values(genreCount),
             backgroundColor: [
-              "#f87171", "#60a5fa", "#34d399", "#facc15", "#a78bfa",
-              "#fb7185", "#fbbf24", "#38bdf8", "#a3e635", "#c084fc"
+              "#f87171","#60a5fa","#34d399","#facc15","#a78bfa",
+              "#fb7185","#fbbf24","#38bdf8","#a3e635","#c084fc"
             ]
           }]
         }
       });
     }
 
-    // Load everything
+    // Load and render everything
     fetchBooks().then(books => {
       renderStats(books);
       renderBooks(books);
     });
+
   </script>
 
 </body>
