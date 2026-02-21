@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>2026 Reading Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -28,30 +29,21 @@
   <script>
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
 
-    // Helper: parse CSV into array of objects
-    function parseCSV(text) {
-      const lines = text.trim().split("\n");
-      const headers = lines[0].split(",").map(h => h.trim());
-      const rows = lines.slice(1).map((line, rowIndex) => {
-        const cells = line.split(",").map(c => c.trim());
-        const obj = {};
-        headers.forEach((h, i) => obj[h] = cells[i] || "");
-        obj._rowIndex = rowIndex + 2; // include header row offset
-        return obj;
-      });
-      return rows;
-    }
-
     async function fetchBooks() {
       try {
         const res = await fetch(CSV_URL);
-        if (!res.ok) throw new Error(res.statusText);
+        if(!res.ok) throw new Error(res.statusText);
         const text = await res.text();
-        const books = parseCSV(text);
 
-        // Show first 10 rows for verification
-        const rawContainer = document.getElementById("rawData");
-        rawContainer.innerHTML = books.slice(0,10).map(b => JSON.stringify(b, null, 2)).join("<br><br>");
+        const { data, errors } = Papa.parse(text, { header: true, skipEmptyLines: true });
+        if(errors.length) console.warn("CSV parse errors:", errors);
+
+        const books = data.map((row,index) => ({ ...row, _rowIndex: index + 2 }));
+
+        // show first 10 rows for verification
+        document.getElementById("rawData").innerHTML = books.slice(0,10)
+          .map(b => JSON.stringify(b, null, 2))
+          .join("<br><br>");
 
         return books;
       } catch(err) {
@@ -64,10 +56,12 @@
     function renderBooks(books) {
       const bookList = document.getElementById("bookList");
       bookList.innerHTML = "";
-      if (books.length === 0) {
+
+      if(books.length === 0){
         bookList.innerHTML = "<p class='text-center col-span-full'>No books found.</p>";
         return;
       }
+
       books.forEach(book => {
         const card = document.createElement("div");
         card.className = "bg-white p-4 rounded shadow hover:shadow-lg transition";
@@ -90,7 +84,7 @@
       const finished = books.filter(b => b.Read && b.Read.toLowerCase() === "finished").length;
       const remaining = Math.max(100 - finished, 0);
       const ratedBooks = books.filter(b => b.Rating);
-      const avgRating = ratedBooks.length ? (ratedBooks.reduce((sum, b) => sum + Number(b.Rating), 0)/ratedBooks.length).toFixed(2) : "-";
+      const avgRating = ratedBooks.length ? (ratedBooks.reduce((sum,b) => sum + Number(b.Rating), 0)/ratedBooks.length).toFixed(2) : "-";
 
       document.getElementById("stats").innerHTML = `
         <p class="text-lg"><strong>Total Books:</strong> ${total}</p>
@@ -123,12 +117,11 @@
       });
     }
 
-    // Load and render everything
+    // Load everything
     fetchBooks().then(books => {
       renderStats(books);
       renderBooks(books);
     });
-
   </script>
 
 </body>
