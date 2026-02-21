@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>2026 Reading Tracker</title>
+<title>Dan's Book Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 font-sans p-6">
 
-<h1 class="text-3xl font-bold mb-6 text-center text-gradient bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">📚 2026 Reading Tracker</h1>
+<h1 class="text-3xl font-bold mb-6 text-center text-gradient bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">📚 Dan's Book Tracker</h1>
 
 <!-- 2x2 grid -->
 <div class="grid md:grid-cols-2 gap-6 mb-6">
@@ -34,9 +34,6 @@
   </div>
 
 </div>
-
-<!-- Timeline of finished books -->
-<div id="timeline" class="bg-white rounded-lg shadow-lg p-4 mb-6 overflow-x-auto flex space-x-4"></div>
 
 <!-- All books list -->
 <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
@@ -83,7 +80,7 @@ async function fetchBooks() {
         const books = data.slice(5).map((row,index)=>({
             Book: row[0] || "",
             Author: row[1] || "",
-            Genre: row[2] || "",
+            Genre: row[2] || "", // Column C
             Read: row[3] || "",
             "Date Finished": row[4] || "",
             Rating: row[5] || "",
@@ -119,23 +116,6 @@ function renderCurrentlyReading(books){
                 <p>Date Finished: ${book["Date Finished"] || "-"}</p>
                 <p>Rating: ${book.Rating || "-"}</p>
             </div>
-        </div>`;
-    });
-}
-
-// Render timeline of finished books
-function renderTimeline(books){
-    const timelineDiv = document.getElementById("timeline");
-    const finishedBooks = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished")
-                               .sort((a,b)=>new Date(a["Date Finished"]) - new Date(b["Date Finished"]));
-    if(finishedBooks.length===0){ timelineDiv.innerHTML=""; return; }
-    timelineDiv.innerHTML = `<p class="text-lg font-semibold mr-4 flex-shrink-0">Timeline</p>`;
-    finishedBooks.forEach(book=>{
-        timelineDiv.innerHTML += `
-        <div class="flex-shrink-0 w-32 flex flex-col items-center">
-            <img src="${book.cover}" onerror="this.src='${PLACEHOLDER_COVER}'" class="w-24 h-36 rounded shadow mb-1">
-            <p class="text-xs text-center truncate">${book.Book}</p>
-            <p class="text-xs text-gray-500">${book["Date Finished"]}</p>
         </div>`;
     });
 }
@@ -204,9 +184,9 @@ function renderStatsAndBars(books){
         <p class="text-sm mt-1">Finished: ${actualFinished} / ${totalTarget}. Expected by now: ${expectedBooks}</p>
     `;
 
-    // Fiction vs Non-Fiction
-    const fictionCount = books.filter(b=>b.apiGenre && b.apiGenre.toLowerCase().includes("fiction")).length;
-    const nonFictionCount = books.filter(b=>b.apiGenre && (!b.apiGenre.toLowerCase().includes("fiction"))).length;
+    // Fiction vs Non-Fiction using column C (Genre)
+    const fictionCount = books.filter(b=>b.Genre && b.Genre.toLowerCase().includes("fiction")).length;
+    const nonFictionCount = books.filter(b=>b.Genre && !b.Genre.toLowerCase().includes("fiction")).length;
     const totalCount = fictionCount + nonFictionCount;
     const fictionPercent = totalCount ? (fictionCount/totalCount*100) : 0;
     const nonFictionPercent = totalCount ? (nonFictionCount/totalCount*100) : 0;
@@ -267,7 +247,6 @@ async function init(){
 
     renderCurrentlyReading(orderedBooks);
     renderStatsAndBars(orderedBooks);
-    renderTimeline(orderedBooks);
     renderBooks(finished);
     renderGenreChart(orderedBooks);
 
@@ -282,7 +261,6 @@ async function init(){
         }
         updateBookCard(book);
         renderStatsAndBars(orderedBooks);
-        renderTimeline(orderedBooks);
         renderCurrentlyReading(orderedBooks);
         renderGenreChart(orderedBooks);
     });
