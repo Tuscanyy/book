@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>2026 Reading Tracker Debug</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans p-6">
+
+  <h1 class="text-3xl font-bold mb-6 text-center">📚 2026 Reading Tracker Debug</h1>
+
+  <!-- Stats Section -->
+  <div id="stats" class="mb-6 text-center"></div>
+
+  <!-- Genre Pie Chart -->
+  <div class="max-w-md mx-auto mb-6">
+    <canvas id="genreChart"></canvas>
+  </div>
+
+  <!-- Books List -->
+  <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+  <!-- Raw Sheet Data Section -->
+  <h2 class="text-2xl font-bold mt-12 mb-4">Raw Sheet Data (first 10 rows)</h2>
+  <div id="rawData" class="bg-white p-4 rounded shadow overflow-x-auto text-sm"></div>
+
+  <script>
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/1Jy7tWIRsD_Wwp8sN2octGIJFKWTwtVo4jNF1Rqabtv8/gviz/tq?tqx=out:json&sheet=2026";
+
+    // Fetch books safely
+    async function fetchBooks() {
+      try {
+        const res = await fetch(SHEET_URL);
+        let text = await res.text();
+
+        // Remove GViz wrapper
+        text = text.replace(/^.*?\(/, "").slice(0, -2);
+        const data = JSON.parse(text);
+
+        const headers = data.table.cols.map(c => c.label || "");
+        const books = data.table.rows.map((r, rowIndex) => {
+          const book = {};
+          r.c.forEach((cell, i) => {
+            if(headers[i]) {
+              book[headers[i]] = cell && cell.v !== undefined ? cell.v : "";
+            }
+          });
+          book._rowIndex = rowIndex + 1;
+          return book;
+        });
+
+        // Display raw data at the bottom for verification
+        const rawContainer = document.getElementById("rawData");
+        rawContainer.innerHTML = books.slice(0, 10).map(b => JSON.stringify(b, null, 2)).join("<br><br>");
+
+        return books;
+      } catch (err) {
+        console.error("Failed to fetch or parse sheet:", err);
+        document.getElementById("rawData").innerText = "Failed to load spreadsheet.";
+        return [];
+      }
+    }
+
+    // Render book cards
+    function renderBooks(books) {
+      const bookList = document.getElementById("bookList");
+      bookList.innerHTML = "";
+
+      if(books.length === 0){
+        bookList.innerHTML = "<p class='text-center col-span-full'>No books found. Check your spreadsheet link or make it public.</p>";
+        return;
+      }
+
+      books.forEach(book => {
+        const card = document.createElement("div");
+        card.className = "bg-white p-4 rounded shadow hover:shadow-lg transition";
+
+        card.innerHTML = `
+          <h2 class="font-bold text-lg mb-1">${book.Book || "Untitled Book"}</h2>
+          <p class="text-sm"><strong>Author:</strong> ${book.Author || "Unknown"}</p>
+          <p class="text-sm"><strong>Genre:</strong> ${book.Genre || "Unknown"}</p>
+          <p class="text-sm"><strong>Read:</strong> ${book.Read || "Not marked"}</p>
+          <p class="text-sm"><strong>Date Finished:</strong> ${book["Date Finished"] || "-"}</p>
+          <p class="text-sm"><strong>Rating:</strong> ${book.Rating || "-"}</p>
+          <p class="text-sm"><strong>Notes:</strong> ${book.Notes || "-"}</p>
+          <p class="text-xs text-gray-400">Row index: ${book._rowIndex}</p>
+        `;
+        bookList.appendChild(card);
+      });
+    }
+
+    // Render stats
+    function renderStats(books) {
+      const total = books.length;
+      const finished = books.filter(b => b.Read && b.Read.toLowerCase() === "finished").length;
+      const remaining = Math.max(100 - finished, 0);
+      const ratedBooks = books.filter(b => b.Rating);
+      const avgRating = ratedBooks.length ? (ratedBooks.reduce((sum, b) => sum + Number(b.Rating), 0) / ratedBooks.length).toFixed(2) : "-";
+
+      document.getElementById("stats").innerHTML = `
+        <p class="text-lg"><strong>Total Books:</strong> ${total}</p>
+        <p class="text-lg"><strong>Finished:</strong> ${finished}</p>
+        <p class="text-lg"><strong>Remaining to 100:</strong> ${remaining}</p>
+        <p class="text-lg"><strong>Average Rating:</strong> ${avgRating}</p>
+      `;
+
+      if(total === 0) return;
+
+      const genreCount = {};
+      books.forEach(b => {
+        const g = b.Genre || "Unknown";
+        genreCount[g] = (genreCount[g] || 0) + 1;
+      });
+
+      new Chart(document.getElementById('genreChart'), {
+        type: 'pie',
+        data: {
+          labels: Object.keys(genreCount),
+          datasets: [{
+            label: 'Genre Distribution',
+            data: Object.values(genreCount),
+            backgroundColor: [
+              "#f87171", "#60a5fa", "#34d399", "#facc15", "#a78bfa",
+              "#fb7185", "#fbbf24", "#38bdf8", "#a3e635", "#c084fc"
+            ]
+          }]
+        }
+      });
+    }
+
+    // Load everything
+    fetchBooks().then(books => {
+      renderStats(books);
+      renderBooks(books);
+    });
+  </script>
+
+</body>
+</html>
