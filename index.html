@@ -3,27 +3,47 @@
 <head>
 <meta charset="UTF-8">
 <title>Dan's Book Tracker</title>
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Slab:wght@700&display=swap" rel="stylesheet">
+
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
+
 <style>
-.star { color: gold; font-size: 1.2em; }
-.progress-marker { position: absolute; width: 2px; background: red; top: 0; bottom: 0; }
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f5f7fa;
+}
+h1 {
+  font-family: 'Roboto Slab', serif;
+  background: linear-gradient(90deg,#7c3aed,#ec4899,#f97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.star { color: #fbbf24; font-size: 1.2em; }
+.progress-marker { position: absolute; width: 2px; background: #ef4444; top: 0; bottom: 0; }
 .progress-container { position: relative; height: 1.5rem; }
-.progress-text { position: absolute; width: 100%; text-align: center; font-weight: bold; top:0; line-height:1.5rem; }
+.progress-text { position: absolute; width: 100%; text-align: center; font-weight: bold; top:0; line-height:1.5rem; color:#111827; }
 .chart-container { width: 10rem; height: 10rem; position: relative; }
-.chart-title { text-align:center; font-weight:bold; margin-bottom:0.25rem; }
-.book-cover { width: 120px; height: 180px; object-fit:cover; border-radius:0.25rem; }
-.book-item { background: #f9fafb; padding:0.75rem; border-radius:0.25rem; transition-transform transform hover:-translate-y-1; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.book-item:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-.book-top { font-bold text-2xl mb-2 }
-.book-content { display:flex; gap:1rem; }
-.book-info { display:flex; flex-direction:column; justify-content:flex-start; }
+.chart-title { text-align:center; font-weight:600; margin-bottom:0.25rem; color:#1f2937; }
+.book-cover { width: 140px; height: 210px; object-fit:cover; border-radius:0.25rem; box-shadow:0 4px 8px rgba(0,0,0,0.1);}
+.book-item { background: #ffffff; padding:0.75rem; border-radius:0.5rem; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+.book-item:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.15); }
+.book-top { font-weight:700; font-size:1.5rem; color:#111827; margin-bottom:0.5rem; }
+.book-content { display:flex; gap:1rem; margin-top:0.5rem; }
+.book-info { display:flex; flex-direction:column; justify-content:flex-start; color:#374151; }
+.bg-stat { background: #e0f2fe; }
+.bg-bar-fiction { background: #60a5fa; }
+.bg-bar-nonfiction { background: #facc15; }
+.bg-bar-progress { background: #34d399; }
 </style>
 </head>
-<body class="bg-gray-50 font-sans p-6">
 
-<h1 class="text-3xl font-bold mb-6 text-center text-gradient bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">📚 Dan's Book Tracker</h1>
+<body class="p-6">
+
+<h1 class="text-3xl text-center mb-6">📚 Dan's Book Tracker</h1>
 
 <div class="grid md:grid-cols-2 gap-6 mb-6">
 
@@ -72,6 +92,7 @@
 <div id="debug" class="mt-12 p-4 bg-gray-100 rounded shadow text-sm overflow-x-auto"></div>
 
 <script>
+// CSV URL
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
 let genreChartInstance=null, genderChartInstance=null, languageChartInstance=null;
 
@@ -106,7 +127,7 @@ async function fetchBooks(){
 
 function renderStars(rating){
     if(!rating) return "-";
-    let r = parseFloat(rating);
+    let r = parseFloat(r);
     const fullStars = Math.floor(r);
     const halfStar = (r - fullStars) >= 0.5 ? 1 : 0;
     const emptyStars = 5 - fullStars - halfStar;
@@ -121,7 +142,7 @@ function renderCurrentlyReading(books){
     current.forEach(b=>{
         div.innerHTML += `
             <div class="book-item">
-                <p class="text-2xl font-bold mb-2">${b.Book}</p>
+                <p class="book-top">${b.Book}</p>
                 <div class="book-content">
                     ${b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : ""}
                     <div class="book-info">
@@ -143,7 +164,7 @@ function renderBooks(books){
     books.forEach(b=>{
         bookList.innerHTML += `
             <div class="book-item">
-                <p class="text-2xl font-bold mb-2">${b.Book}</p>
+                <p class="book-top">${b.Book}</p>
                 <div class="book-content">
                     ${b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : ""}
                     <div class="book-info">
@@ -160,7 +181,7 @@ function renderBooks(books){
     });
 }
 
-// Stats and bars remain unchanged (code omitted for brevity in this snippet)
+// Stats and Bars function same as previous code (unchanged)
 
 function renderStatsAndBars(books){
     const finishedBooks = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
@@ -181,8 +202,8 @@ function renderStatsAndBars(books){
 
     document.getElementById("readProgressBar").innerHTML=`
         <p class="text-lg font-semibold mb-1">Reading Progress</p>
-        <div class="progress-container w-full bg-gray-300 rounded-full relative">
-            <div class="bg-green-500 h-6 rounded-full" style="width:${percent}%"></div>
+        <div class="progress-container w-full bg-gray-200 rounded-full relative">
+            <div class="bg-bar-progress h-6 rounded-full" style="width:${percent}%"></div>
             <div class="progress-marker" style="left:${markerPercent}%"></div>
             <div class="progress-text">${finishedBooks} / 100 (Expected: ${expectedBooks})</div>
         </div>
@@ -195,9 +216,9 @@ function renderStatsAndBars(books){
     const nonFictionPercent = totalCount ? (nonFictionCount/totalCount*100):0;
     document.getElementById("fictionBar").innerHTML=`
         <p class="text-lg font-semibold mb-1">Fiction vs Non-Fiction</p>
-        <div class="w-full bg-gray-300 rounded-full h-6 flex relative">
-            <div class="bg-blue-500 h-6 rounded-l" style="width:${fictionPercent}%"></div>
-            <div class="bg-yellow-500 h-6 rounded-r" style="width:${nonFictionPercent}%"></div>
+        <div class="w-full bg-gray-200 rounded-full h-6 flex relative">
+            <div class="bg-bar-fiction h-6 rounded-l" style="width:${fictionPercent}%"></div>
+            <div class="bg-bar-nonfiction h-6 rounded-r" style="width:${nonFictionPercent}%"></div>
             <div class="progress-text">Fiction: ${fictionCount}, Non-Fiction: ${nonFictionCount}</div>
         </div>
     `;
