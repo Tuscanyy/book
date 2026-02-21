@@ -10,6 +10,7 @@
 .star { color: gold; font-size: 1.1em; }
 .progress-marker { position: absolute; width: 2px; background: red; top: 0; bottom: 0; }
 .progress-container { position: relative; height: 1.5rem; }
+.chart-container { width: 10rem; height: 10rem; position: relative; }
 </style>
 </head>
 <body class="bg-gray-50 font-sans p-6">
@@ -29,9 +30,15 @@
 
   <!-- C: Pie Charts Row -->
   <div class="bg-white p-4 rounded-lg shadow-lg flex justify-around">
-    <canvas id="genreChart" width="140" height="140"></canvas>
-    <canvas id="genderChart" width="140" height="140"></canvas>
-    <canvas id="languageChart" width="140" height="140"></canvas>
+    <div class="chart-container">
+      <canvas id="genreChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <canvas id="genderChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <canvas id="languageChart"></canvas>
+    </div>
   </div>
 
   <!-- D: Fiction / Non-Fiction Bar & Reading Progress -->
@@ -149,7 +156,7 @@ function renderStatsAndBars(books){
 
     document.getElementById("readProgressBar").innerHTML=`
         <p class="text-lg font-semibold mb-1">Reading Progress</p>
-        <div class="progress-container w-full bg-gray-300 rounded-full h-6 relative">
+        <div class="progress-container w-full bg-gray-300 rounded-full relative">
             <div class="bg-green-500 h-6 rounded-full" style="width:${percent}%"></div>
             <div class="progress-marker" style="left:${markerPercent}%"></div>
         </div>
@@ -176,14 +183,20 @@ function renderPieChart(id, dataObj){
     const labels = Object.keys(dataObj);
     const data = Object.values(dataObj);
     const ctx = document.getElementById(id);
-    ctx.width=140; ctx.height=140;
     if(id==="genreChart" && genreChartInstance) genreChartInstance.destroy();
     if(id==="genderChart" && genderChartInstance) genderChartInstance.destroy();
     if(id==="languageChart" && languageChartInstance) languageChartInstance.destroy();
     const chart = new Chart(ctx,{
         type:'pie',
         data:{labels,data,datasets:[{data,backgroundColor:["#f87171","#60a5fa","#34d399","#facc15","#a78bfa","#fb7185","#fbbf24","#38bdf8","#a3e635","#c084fc"]}]},
-        options:{responsive:false, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:8}}}}
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            aspectRatio:1,
+            plugins:{
+                legend:{position:'bottom',labels:{boxWidth:12,padding:8}}
+            }
+        }
     });
     if(id==="genreChart") genreChartInstance=chart;
     if(id==="genderChart") genderChartInstance=chart;
