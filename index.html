@@ -21,19 +21,15 @@
 
 <h1 class="text-3xl font-bold mb-6 text-center text-gradient bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">📚 Dan's Book Tracker</h1>
 
-<!-- 2x2 grid -->
 <div class="grid md:grid-cols-2 gap-6 mb-6">
 
-  <!-- A: Currently Reading -->
   <div id="currentlyReading" class="bg-white p-4 rounded-lg shadow-lg overflow-auto max-h-[400px]"></div>
 
-  <!-- B: Stats -->
   <div class="space-y-4">
     <div id="stats" class="bg-white p-4 rounded-lg shadow-lg text-center"></div>
   </div>
 
-  <!-- C: Pie Charts Row -->
-  <div class="bg-white p-4 rounded-lg shadow-lg flex justify-around">
+  <div class="bg-white p-4 rounded-lg shadow-lg flex justify-around flex-wrap">
     <div class="chart-container">
       <canvas id="genreChart"></canvas>
     </div>
@@ -45,7 +41,6 @@
     </div>
   </div>
 
-  <!-- D: Fiction / Non-Fiction Bar & Reading Progress -->
   <div class="space-y-4">
     <div id="fictionBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
     <div id="readProgressBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
@@ -53,10 +48,8 @@
 
 </div>
 
-<!-- All books list -->
 <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
-<!-- Debug Section -->
 <div id="debug" class="mt-12 p-4 bg-gray-100 rounded shadow text-sm overflow-x-auto"></div>
 
 <script>
@@ -78,6 +71,7 @@ async function fetchBooks(){
             "Date Finished": row[4]||"",
             Rating: row[5]||"",
             Notes: row[6]||"",
+            Gender: row[7]||"",
             Language: row[8]||"",
             Genre: row[9]?.trim() || "Other",
             Cover: row[10]||"",
@@ -91,7 +85,6 @@ async function fetchBooks(){
     }
 }
 
-// Half star ratings
 function renderStars(rating){
     if(!rating) return "-";
     let r = parseFloat(rating);
@@ -152,7 +145,6 @@ function renderStatsAndBars(books){
         <p class="text-lg"><strong>Average Rating:</strong> ${avgRating}</p>
     `;
 
-    // Reading progress with marker and overlay text
     const today=new Date(), start=new Date(today.getFullYear(),0,1), end=new Date(today.getFullYear(),11,31);
     const yearFraction = (today-start)/(end-start);
     const expectedBooks = Math.floor(100*yearFraction);
@@ -168,7 +160,6 @@ function renderStatsAndBars(books){
         </div>
     `;
 
-    // Fiction/Non-Fiction bar with overlay
     const fictionCount = books.filter(b=>b.Fiction.toLowerCase().includes("fiction")).length;
     const nonFictionCount = books.filter(b=>b.Fiction.toLowerCase().includes("non-fiction")).length;
     const totalCount = fictionCount+nonFictionCount;
@@ -208,10 +199,11 @@ function renderCharts(books){
     books.forEach(b=>{
         const g = b.Genre.trim() || "Other";
         genreCount[g]=(genreCount[g]||0)+1;
+        if(b.Gender) genderCount[b.Gender]=(genderCount[b.Gender]||0)+1;
         if(b.Language) langCount[b.Language]=(langCount[b.Language]||0)+1;
     });
     renderPieChart("genreChart",genreCount);
-    renderPieChart("genderChart",{}); // Hide gender chart if you don't want it
+    renderPieChart("genderChart",genderCount);
     renderPieChart("languageChart",langCount);
 }
 
