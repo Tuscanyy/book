@@ -11,22 +11,30 @@
 
 <h1 class="text-3xl font-bold mb-6 text-center">📚 2026 Reading Tracker</h1>
 
-<!-- Reading progress bar -->
-<div id="readProgressBar" class="mb-6"></div>
+<!-- Top grid: Currently Reading | Stats + Bars -->
+<div class="grid md:grid-cols-2 gap-6 mb-6">
 
-<!-- Fiction vs Non-Fiction bar -->
-<div id="fictionBar" class="mb-6"></div>
+  <!-- Column 1: Currently Reading -->
+  <div id="currentlyReading" class="bg-white p-4 rounded shadow"></div>
 
-<!-- Stats Section -->
-<div id="stats" class="mb-6 text-center"></div>
+  <!-- Column 2: Stats + Bars -->
+  <div class="space-y-4">
+    <!-- Reading progress bar -->
+    <div id="readProgressBar"></div>
+
+    <!-- Fiction vs Non-Fiction bar -->
+    <div id="fictionBar"></div>
+
+    <!-- Stats -->
+    <div id="stats" class="text-center"></div>
+  </div>
+
+</div>
 
 <!-- Genre Pie Chart -->
 <div class="max-w-md mx-auto mb-6">
 <canvas id="genreChart"></canvas>
 </div>
-
-<!-- Currently reading -->
-<div id="currentlyReading" class="mb-6"></div>
 
 <!-- Books List -->
 <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
