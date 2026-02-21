@@ -22,11 +22,11 @@
     <div id="stats" class="bg-white p-4 rounded-lg shadow-lg text-center"></div>
   </div>
 
-  <!-- C: Charts -->
-  <div class="bg-white p-4 rounded-lg shadow-lg flex flex-col items-center space-y-4">
-    <canvas id="genreChart" width="150" height="150"></canvas>
-    <canvas id="genderChart" width="150" height="150"></canvas>
-    <canvas id="languageChart" width="150" height="150"></canvas>
+  <!-- C: Pie Charts Row -->
+  <div class="bg-white p-4 rounded-lg shadow-lg flex justify-around">
+    <canvas id="genreChart" width="120" height="120"></canvas>
+    <canvas id="genderChart" width="120" height="120"></canvas>
+    <canvas id="languageChart" width="120" height="120"></canvas>
   </div>
 
   <!-- D: Fiction / Non-Fiction Bar & Reading Progress -->
@@ -158,11 +158,11 @@ function renderStatsAndBars(books){
 }
 
 // Render pie charts
-function renderPieChart(id, dataObj, title){
+function renderPieChart(id, dataObj){
     const labels = Object.keys(dataObj);
     const data = Object.values(dataObj);
     const ctx = document.getElementById(id);
-    ctx.width=150; ctx.height=150;
+    ctx.width=120; ctx.height=120;
     if(id==="genreChart" && genreChartInstance) genreChartInstance.destroy();
     if(id==="genderChart" && genderChartInstance) genderChartInstance.destroy();
     if(id==="languageChart" && languageChartInstance) languageChartInstance.destroy();
@@ -184,9 +184,9 @@ function renderCharts(books){
         if(b.Gender) genderCount[b.Gender]=(genderCount[b.Gender]||0)+1;
         if(b.Language) langCount[b.Language]=(langCount[b.Language]||0)+1;
     });
-    renderPieChart("genreChart",genreCount,"Genre");
-    renderPieChart("genderChart",genderCount,"Gender");
-    renderPieChart("languageChart",langCount,"Language");
+    renderPieChart("genreChart",genreCount);
+    renderPieChart("genderChart",genderCount);
+    renderPieChart("languageChart",langCount);
 }
 
 // Main
