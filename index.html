@@ -25,7 +25,7 @@
 <script>
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
 
-// Fetch Open Library data for a single book
+// Fetch Open Library data for a book
 async function fetchBookDetails(title, author) {
     if(!title) return null;
     const query = encodeURIComponent(title + (author ? " " + author : ""));
@@ -36,23 +36,23 @@ async function fetchBookDetails(title, author) {
         if(!data.docs || data.docs.length === 0) return null;
         const book = data.docs[0];
         return {
-            cover: book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : "https://via.placeholder.com/128x192?text=No+Cover",
+            cover: book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : "",
             publish_year: book.first_publish_year || "",
             subjects: book.subject ? book.subject.slice(0,5) : []
         };
     } catch(err) {
-        return { cover: "https://via.placeholder.com/128x192?text=No+Cover", publish_year: "", subjects: [] };
+        return null;
     }
 }
 
-// Fetch CSV and parse into book objects
+// Fetch and parse CSV
 async function fetchBooks() {
     const res = await fetch(CSV_URL);
     if(!res.ok) throw new Error(res.statusText);
     const text = await res.text();
     const { data } = Papa.parse(text, { header: false, skipEmptyLines: true });
 
-    // Slice to skip first 5 rows (A6 onwards)
+    // Slice to skip first 5 rows (A6 onward)
     const books = data.slice(5).map((row, index) => ({
         Book: row[0] || "",
         Author: row[1] || "",
@@ -61,27 +61,18 @@ async function fetchBooks() {
         "Date Finished": row[4] || "",
         Rating: row[5] || "",
         Notes: row[6] || "",
-        _rowIndex: index + 6
+        _rowIndex: index + 6,
+        cover: "https://via.placeholder.com/128x192?text=Loading..."
     }));
-
-    // Fetch Open Library details in parallel
-    const detailPromises = books.map(b => fetchBookDetails(b.Book, b.Author));
-    const details = await Promise.all(detailPromises);
-
-    // Merge details into book objects
-    books.forEach((b,i)=>{
-        b.cover = details[i].cover;
-        b.publish_year = details[i].publish_year;
-        b.subjects = details[i].subjects;
-    });
 
     return books;
 }
 
-// Render book cards
+// Render book cards immediately
 function renderBooks(books){
     const bookList = document.getElementById("bookList");
     bookList.innerHTML = "";
+
     if(books.length === 0){
         bookList.innerHTML = "<p class='text-center col-span-full'>No books found.</p>";
         return;
@@ -90,6 +81,7 @@ function renderBooks(books){
     books.forEach(book=>{
         const card = document.createElement("div");
         card.className = "bg-white p-4 rounded shadow hover:shadow-lg transition flex flex-col items-center";
+        card.id = "book-" + book._rowIndex; // use row index for later update
         card.innerHTML = `
             <img src="${book.cover}" class="w-32 h-48 mb-2 object-cover rounded shadow">
             <h2 class="font-bold text-lg mb-1 text-center">${book.Book}</h2>
@@ -98,14 +90,26 @@ function renderBooks(books){
             <p class="text-sm text-center"><strong>Read:</strong> ${book.Read || "Not marked"}</p>
             <p class="text-sm text-center"><strong>Date Finished:</strong> ${book["Date Finished"] || "-"}</p>
             <p class="text-sm text-center"><strong>Rating:</strong> ${book.Rating || "-"}</p>
-            <p class="text-sm text-center"><strong>Published:</strong> ${book.publish_year || "-"}</p>
-            <p class="text-sm text-center"><strong>Subjects:</strong> ${book.subjects.join(", ")}</p>
+            <p class="text-sm text-center"><strong>Published:</strong> -</p>
+            <p class="text-sm text-center"><strong>Subjects:</strong> -</p>
         `;
         bookList.appendChild(card);
     });
 }
 
-// Render dashboard stats and pie chart
+// Update card with API data
+function updateBookCard(book){
+    const card = document.getElementById("book-" + book._rowIndex);
+    if(!card) return;
+    const img = card.querySelector("img");
+    if(book.cover) img.src = book.cover;
+    const publishElem = card.querySelector("p:nth-of-type(6)");
+    publishElem.innerHTML = `<strong>Published:</strong> ${book.publish_year || "-"}`;
+    const subjectsElem = card.querySelector("p:nth-of-type(7)");
+    subjectsElem.innerHTML = `<strong>Subjects:</strong> ${book.subjects.join(", ") || "-"}`;
+}
+
+// Render stats and chart
 function renderStats(books){
     const total = books.length;
     const finished = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
@@ -142,14 +146,31 @@ function renderStats(books){
     });
 }
 
-// Load everything
-fetchBooks().then(books=>{
-    renderStats(books);
-    renderBooks(books);
-}).catch(err=>{
-    console.error("Failed to load books:", err);
-    document.getElementById("bookList").innerHTML = "<p class='text-center col-span-full'>Failed to load books.</p>";
-});
+// Main function
+async function init() {
+    try {
+        const books = await fetchBooks();
+        renderStats(books);
+        renderBooks(books);
+
+        // Fetch Open Library details asynchronously
+        books.forEach(async (book)=>{
+            const details = await fetchBookDetails(book.Book, book.Author);
+            if(details){
+                book.cover = details.cover || book.cover;
+                book.publish_year = details.publish_year || "";
+                book.subjects = details.subjects || [];
+            }
+            updateBookCard(book);
+        });
+
+    } catch(err){
+        console.error("Failed to load books:", err);
+        document.getElementById("bookList").innerHTML = "<p class='text-center col-span-full'>Failed to load books.</p>";
+    }
+}
+
+init();
 </script>
 
 </body>
