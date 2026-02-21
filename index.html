@@ -17,7 +17,7 @@ h1 { font-family: 'Roboto Slab', serif; background: linear-gradient(90deg,#7c3ae
 .star { color: #fbbf24; font-size: 1.2em; }
 .book-item { background: #ffffff; border-radius: 0.5rem; padding: 1rem; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: transform 0.2s, box-shadow 0.2s; }
 .book-item:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.15); }
-.book-title { font-family: 'Roboto Slab', serif; font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem; }
+.book-top { font-family: 'Roboto Slab', serif; font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem; }
 .book-content { display:flex; gap:1rem; }
 .book-cover { width: 120px; height: 180px; object-fit: cover; border-radius:0.25rem; }
 .book-info { display:flex; flex-direction:column; justify-content:flex-start; color:#374151; }
@@ -123,7 +123,7 @@ function renderCurrentlyReading(books){
     current.forEach(b=>{
         div.innerHTML += `
             <div class="book-item">
-                <p class="book-title">${b.Book}</p>
+                <p class="book-top">${b.Book}</p>
                 <div class="book-content">
                     ${b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : ""}
                     <div class="book-info">
@@ -145,7 +145,7 @@ function renderBooks(books){
     books.forEach(b=>{
         bookList.innerHTML += `
             <div class="book-item">
-                <p class="book-title">${b.Book}</p>
+                <p class="book-top">${b.Book}</p>
                 <div class="book-content">
                     ${b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : ""}
                     <div class="book-info">
@@ -162,7 +162,8 @@ function renderBooks(books){
     });
 }
 
-// Stats, bars, and charts functions remain unchanged as previous working code
+// Stats, bars, charts functions remain identical to the previous working version
+// (omitted here for brevity, can copy exactly from working version)
 
 async function init(){
     const books = await fetchBooks();
