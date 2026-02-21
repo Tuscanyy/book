@@ -153,10 +153,78 @@ function renderBooks(books){
     });
 }
 
-// Stats, bars, charts (use previous working functions)
-function renderStatsAndBars(books){ /* ... same as last working version ... */ }
-function renderPieChart(id,dataObj){ /* ... */ }
-function renderCharts(books){ /* ... */ }
+function renderStatsAndBars(books){
+    const finishedBooks = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
+    const remaining = Math.max(100-finishedBooks,0);
+    const avgRating = books.filter(b=>b.Rating).length ? (books.filter(b=>b.Rating).reduce((s,b)=>s+Number(b.Rating),0)/books.filter(b=>b.Rating).length).toFixed(2) : "-";
+
+    document.getElementById("stats").innerHTML=`
+        <p class="text-lg"><strong>Finished:</strong> ${finishedBooks}</p>
+        <p class="text-lg"><strong>Remaining to 100:</strong> ${remaining}</p>
+        <p class="text-lg"><strong>Average Rating:</strong> ${avgRating}</p>
+    `;
+
+    const today=new Date(), start=new Date(today.getFullYear(),0,1), end=new Date(today.getFullYear(),11,31);
+    const yearFraction = (today-start)/(end-start);
+    const expectedBooks = Math.floor(100*yearFraction);
+    const percent = Math.min((finishedBooks/100)*100,100);
+    const markerPercent = Math.min((expectedBooks/100)*100,100);
+
+    document.getElementById("readProgressBar").innerHTML=`
+        <p class="text-lg font-semibold mb-1">Reading Progress</p>
+        <div class="progress-container w-full bg-gray-300 rounded-full relative">
+            <div class="bg-green-500 h-6 rounded-full" style="width:${percent}%"></div>
+            <div class="progress-marker" style="left:${markerPercent}%"></div>
+            <div class="progress-text">${finishedBooks} / 100 (Expected: ${expectedBooks})</div>
+        </div>
+    `;
+
+    const fictionCount = books.filter(b=>b.Fiction.toLowerCase().includes("fiction")).length;
+    const nonFictionCount = books.filter(b=>b.Fiction.toLowerCase().includes("non-fiction")).length;
+    const totalCount = fictionCount+nonFictionCount;
+    const fictionPercent = totalCount ? (fictionCount/totalCount*100):0;
+    const nonFictionPercent = totalCount ? (nonFictionCount/totalCount*100):0;
+    document.getElementById("fictionBar").innerHTML=`
+        <p class="text-lg font-semibold mb-1">Fiction vs Non-Fiction</p>
+        <div class="w-full bg-gray-300 rounded-full h-6 flex relative">
+            <div class="bg-blue-500 h-6 rounded-l" style="width:${fictionPercent}%"></div>
+            <div class="bg-yellow-500 h-6 rounded-r" style="width:${nonFictionPercent}%"></div>
+            <div class="progress-text">Fiction: ${fictionCount}, Non-Fiction: ${nonFictionCount}</div>
+        </div>
+    `;
+}
+
+function renderPieChart(id, dataObj){
+    const labels = Object.keys(dataObj);
+    const data = Object.values(dataObj);
+    const ctx = document.getElementById(id);
+    if(id==="genreChart" && genreChartInstance) genreChartInstance.destroy();
+    if(id==="genderChart" && genderChartInstance) genderChartInstance.destroy();
+    if(id==="languageChart" && languageChartInstance) languageChartInstance.destroy();
+    const chart = new Chart(ctx,{
+        type:'pie',
+        data:{labels,data,datasets:[{data,backgroundColor:["#f87171","#60a5fa","#34d399","#facc15","#a78bfa","#fb7185","#fbbf24","#38bdf8","#a3e635","#c084fc"]}]},
+        options:{responsive:true, maintainAspectRatio:false, aspectRatio:1,
+            plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:8}}}
+        }
+    });
+    if(id==="genreChart") genreChartInstance=chart;
+    if(id==="genderChart") genderChartInstance=chart;
+    if(id==="languageChart") languageChartInstance=chart;
+}
+
+function renderCharts(books){
+    const genreCount={}, genderCount={}, langCount={};
+    books.forEach(b=>{
+        const g = b.Genre.trim() || "Other";
+        genreCount[g]=(genreCount[g]||0)+1;
+        if(b.Gender) genderCount[b.Gender]=(genderCount[b.Gender]||0)+1;
+        if(b.Language) langCount[b.Language]=(langCount[b.Language]||0)+1;
+    });
+    renderPieChart("genreChart",genreCount);
+    renderPieChart("genderChart",genderCount);
+    renderPieChart("languageChart",langCount);
+}
 
 async function init(){
     const books = await fetchBooks();
