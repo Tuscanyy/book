@@ -11,32 +11,31 @@
 
 <h1 class="text-3xl font-bold mb-6 text-center">📚 2026 Reading Tracker</h1>
 
-<!-- Top grid: Currently Reading | Stats + Bars -->
+<!-- 2x2 grid -->
 <div class="grid md:grid-cols-2 gap-6 mb-6">
 
-  <!-- Column 1: Currently Reading -->
-  <div id="currentlyReading" class="bg-white p-4 rounded shadow"></div>
+  <!-- A: Currently Reading -->
+  <div id="currentlyReading" class="bg-white p-4 rounded shadow overflow-auto max-h-[400px]"></div>
 
-  <!-- Column 2: Stats + Bars -->
+  <!-- B: Stats and other info -->
   <div class="space-y-4">
-    <!-- Reading progress bar -->
-    <div id="readProgressBar"></div>
+    <div id="stats" class="bg-white p-4 rounded shadow text-center"></div>
+  </div>
 
-    <!-- Fiction vs Non-Fiction bar -->
-    <div id="fictionBar"></div>
+  <!-- C: Genre Pie Chart -->
+  <div class="bg-white p-4 rounded shadow flex items-center justify-center">
+    <canvas id="genreChart"></canvas>
+  </div>
 
-    <!-- Stats -->
-    <div id="stats" class="text-center"></div>
+  <!-- D: Bars -->
+  <div class="space-y-4">
+    <div id="readProgressBar" class="bg-white p-4 rounded shadow"></div>
+    <div id="fictionBar" class="bg-white p-4 rounded shadow"></div>
   </div>
 
 </div>
 
-<!-- Genre Pie Chart -->
-<div class="max-w-md mx-auto mb-6">
-<canvas id="genreChart"></canvas>
-</div>
-
-<!-- Books List -->
+<!-- All books list -->
 <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
 <!-- Debug Section -->
@@ -46,7 +45,7 @@
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
 const PLACEHOLDER_COVER = "https://via.placeholder.com/128x192?text=No+Cover";
 
-// Helper: fetch Open Library info
+// Fetch book data from Open Library
 async function fetchBookDetails(title, author) {
     if(!title) return null;
     const query = encodeURIComponent(title + (author ? " " + author : ""));
@@ -67,7 +66,7 @@ async function fetchBookDetails(title, author) {
     }
 }
 
-// Fetch CSV and parse into book objects
+// Fetch CSV and parse books
 async function fetchBooks() {
     const debugDiv = document.getElementById("debug");
     try {
@@ -75,9 +74,7 @@ async function fetchBooks() {
         debugDiv.innerHTML = `<p>CSV fetch status: ${res.status} ${res.statusText}</p>`;
         const text = await res.text();
         debugDiv.innerHTML += `<p>CSV preview (first 200 chars):<br>${text.slice(0,200)}</p>`;
-
         if(!res.ok) throw new Error("CSV fetch failed");
-
         const { data } = Papa.parse(text, { header: false, skipEmptyLines: true });
         const books = data.slice(5).map((row,index)=>({
             Book: row[0] || "",
@@ -92,25 +89,40 @@ async function fetchBooks() {
             subjects: [],
             apiGenre: ""
         }));
-
         debugDiv.innerHTML += `<p>Total books parsed: ${books.length}</p>`;
         return books;
-
     } catch(err) {
         debugDiv.innerHTML += `<p style="color:red;">Failed to load CSV: ${err}</p>`;
         return [];
     }
 }
 
-// Render book cards
+// Render currently reading books (full cards)
+function renderCurrentlyReading(books){
+    const div = document.getElementById("currentlyReading");
+    const currentlyReadingBooks = books.filter(b=>!b.Read || b.Read.toLowerCase()!=="finished");
+    if(currentlyReadingBooks.length===0){ div.innerHTML=""; return; }
+    div.innerHTML = `<p class="text-lg font-semibold mb-2">📖 Currently Reading</p>`;
+    currentlyReadingBooks.forEach(book=>{
+        div.innerHTML += `
+        <div class="bg-gray-50 rounded shadow p-2 mb-2 flex">
+            <img src="${book.cover}" onerror="this.src='${PLACEHOLDER_COVER}'" class="w-24 h-36 mr-2 object-cover rounded">
+            <div class="text-sm">
+                <p><strong>${book.Book}</strong></p>
+                <p>Author: ${book.Author || "Unknown"}</p>
+                <p>Genre: ${book.Genre || "Unknown"}</p>
+                <p>Read: ${book.Read || "Not marked"}</p>
+                <p>Date Finished: ${book["Date Finished"] || "-"}</p>
+                <p>Rating: ${book.Rating || "-"}</p>
+            </div>
+        </div>`;
+    });
+}
+
+// Render all other books
 function renderBooks(books){
     const bookList = document.getElementById("bookList");
     bookList.innerHTML = "";
-    if(books.length === 0){
-        bookList.innerHTML = "<p class='text-center col-span-full'>No books found.</p>";
-        return;
-    }
-
     books.forEach(book=>{
         const card = document.createElement("div");
         card.className = "bg-white p-4 rounded shadow hover:shadow-lg transition flex flex-col items-center";
@@ -130,7 +142,7 @@ function renderBooks(books){
     });
 }
 
-// Update book card with API data
+// Update book card with API info
 function updateBookCard(book){
     const card = document.getElementById("book-" + book._rowIndex);
     if(!card) return;
@@ -142,8 +154,19 @@ function updateBookCard(book){
     subjectsElem.innerHTML = `<strong>Subjects:</strong> ${book.subjects.join(", ") || "-"}`;
 }
 
-// Render stats, progress bars, and pie chart
+// Render stats, bars, pie chart
 function renderStatsAndCharts(books){
+    // Stats
+    const ratedBooks = books.filter(b=>b.Rating);
+    const avgRating = ratedBooks.length ? (ratedBooks.reduce((sum,b)=>sum+Number(b.Rating),0)/ratedBooks.length).toFixed(2) : "-";
+    const actualFinished = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
+    document.getElementById("stats").innerHTML = `
+        <p class="text-lg"><strong>Total Books:</strong> ${books.length}</p>
+        <p class="text-lg"><strong>Finished:</strong> ${actualFinished}</p>
+        <p class="text-lg"><strong>Remaining to 100:</strong> ${Math.max(100-actualFinished,0)}</p>
+        <p class="text-lg"><strong>Average Rating:</strong> ${avgRating}</p>
+    `;
+
     // Reading progress bar
     const totalTarget = 100;
     const today = new Date();
@@ -151,7 +174,6 @@ function renderStatsAndCharts(books){
     const endOfYear = new Date(today.getFullYear(),11,31);
     const yearFraction = (today - startOfYear)/(endOfYear-startOfYear);
     const expectedBooks = Math.floor(totalTarget*yearFraction);
-    const actualFinished = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
     const percent = Math.min((actualFinished/totalTarget)*100,100);
     document.getElementById("readProgressBar").innerHTML = `
         <p class="text-lg font-semibold mb-1">Reading Progress</p>
@@ -161,7 +183,7 @@ function renderStatsAndCharts(books){
         <p class="text-sm mt-1">Finished: ${actualFinished} / ${totalTarget}. Expected by now: ${expectedBooks}</p>
     `;
 
-    // Fiction vs Non-Fiction bar
+    // Fiction vs Non-Fiction
     const fictionCount = books.filter(b=>b.Genre && b.Genre.toLowerCase().includes("fiction")).length;
     const nonFictionCount = books.filter(b=>b.Genre && b.Genre.toLowerCase().includes("non-fiction")).length;
     const totalCount = fictionCount + nonFictionCount;
@@ -176,17 +198,7 @@ function renderStatsAndCharts(books){
         <p class="text-sm mt-1">Fiction: ${fictionCount}, Non-Fiction: ${nonFictionCount}</p>
     `;
 
-    // Stats
-    const ratedBooks = books.filter(b=>b.Rating);
-    const avgRating = ratedBooks.length ? (ratedBooks.reduce((sum,b)=>sum+Number(b.Rating),0)/ratedBooks.length).toFixed(2) : "-";
-    document.getElementById("stats").innerHTML = `
-        <p class="text-lg"><strong>Total Books:</strong> ${books.length}</p>
-        <p class="text-lg"><strong>Finished:</strong> ${actualFinished}</p>
-        <p class="text-lg"><strong>Remaining to 100:</strong> ${Math.max(100-actualFinished,0)}</p>
-        <p class="text-lg"><strong>Average Rating:</strong> ${avgRating}</p>
-    `;
-
-    // Pie chart with genres
+    // Pie chart
     const genreCount = {};
     books.forEach(b=>{
         let g = b.apiGenre || b.Genre || "Unknown";
@@ -208,20 +220,6 @@ function renderStatsAndCharts(books){
     });
 }
 
-// Render currently reading
-function renderCurrentlyReading(books){
-    const currentDiv = document.getElementById("currentlyReading");
-    const currentlyReadingBooks = books.filter(b=>!b.Read || b.Read.toLowerCase()!=="finished");
-    if(currentlyReadingBooks.length === 0){
-        currentDiv.innerHTML = "";
-        return;
-    }
-    currentDiv.innerHTML = `<p class="text-lg font-semibold mb-2">📖 Currently Reading</p>`;
-    currentlyReadingBooks.forEach(b=>{
-        currentDiv.innerHTML += `<p class="mb-1">${b.Book} by ${b.Author || "Unknown"}</p>`;
-    });
-}
-
 // Main init
 async function init(){
     const books = await fetchBooks();
@@ -233,9 +231,9 @@ async function init(){
 
     renderCurrentlyReading(orderedBooks);
     renderStatsAndCharts(orderedBooks);
-    renderBooks(orderedBooks);
+    renderBooks(finished); // render finished books in bookList
 
-    // Fetch Open Library details async
+    // Fetch Open Library info async
     orderedBooks.forEach(async (book)=>{
         const details = await fetchBookDetails(book.Book, book.Author);
         if(details){
@@ -245,7 +243,7 @@ async function init(){
             book.apiGenre = details.genre || "";
         }
         updateBookCard(book);
-        renderStatsAndCharts(orderedBooks); // update pie chart as data comes in
+        renderStatsAndCharts(orderedBooks);
     });
 }
 
