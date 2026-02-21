@@ -13,7 +13,8 @@
 .progress-text { position: absolute; width: 100%; text-align: center; font-weight: bold; top:0; line-height:1.5rem; }
 .chart-container { width: 10rem; height: 10rem; position: relative; }
 .book-cover { width: 80px; height: 120px; object-fit: cover; margin-right: 0.5rem; border-radius: 0.25rem; }
-.book-item { display: flex; align-items: flex-start; margin-bottom: 0.5rem; background: #f9fafb; padding:0.5rem; border-radius:0.25rem; }
+.book-item { display: flex; align-items: flex-start; margin-bottom: 0.5rem; background: #f9fafb; padding:0.5rem; border-radius:0.25rem; transition-transform transform hover:-translate-y-1; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.book-item:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
 </style>
 </head>
 <body class="bg-gray-50 font-sans p-6">
@@ -77,10 +78,9 @@ async function fetchBooks(){
             "Date Finished": row[4]||"",
             Rating: row[5]||"",
             Notes: row[6]||"",
-            Gender: row[7]||"",
             Language: row[8]||"",
             Genre: row[9]?.trim() || "Other",
-            Cover: row[10]||"", // Column K for cover image
+            Cover: row[10]||"",
             _rowIndex:index+6
         }));
         debugDiv.innerHTML += `<p>Total books parsed: ${books.length}</p>`;
@@ -114,7 +114,6 @@ function renderCurrentlyReading(books){
                   <p class="font-semibold">${b.Book}</p>
                   <p>Author: ${b.Author || "Unknown"}</p>
                   <p>Genre: ${b.Genre || b.Fiction || "Unknown"}</p>
-                  <p>Read: ${b.Read || "Not marked"}</p>
                 </div>
             </div>`;
     });
@@ -133,9 +132,7 @@ function renderBooks(books){
                   <p><strong>Author:</strong> ${b.Author}</p>
                   <p><strong>Genre:</strong> ${b.Genre || b.Fiction}</p>
                   <p><strong>Fiction/Non-Fiction:</strong> ${b.Fiction}</p>
-                  <p><strong>Gender:</strong> ${b.Gender}</p>
                   <p><strong>Language:</strong> ${b.Language}</p>
-                  <p><strong>Read:</strong> ${b.Read}</p>
                   <p><strong>Date Finished:</strong> ${b["Date Finished"]}</p>
                   <p><strong>Rating:</strong> <span class="star">${stars}</span></p>
                 </div>
@@ -155,7 +152,7 @@ function renderStatsAndBars(books){
         <p class="text-lg"><strong>Average Rating:</strong> ${avgRating}</p>
     `;
 
-    // Reading progress with marker and text over bar
+    // Reading progress with marker and overlay text
     const today=new Date(), start=new Date(today.getFullYear(),0,1), end=new Date(today.getFullYear(),11,31);
     const yearFraction = (today-start)/(end-start);
     const expectedBooks = Math.floor(100*yearFraction);
@@ -171,7 +168,7 @@ function renderStatsAndBars(books){
         </div>
     `;
 
-    // Fiction/Non-Fiction Bar with text overlay
+    // Fiction/Non-Fiction bar with overlay
     const fictionCount = books.filter(b=>b.Fiction.toLowerCase().includes("fiction")).length;
     const nonFictionCount = books.filter(b=>b.Fiction.toLowerCase().includes("non-fiction")).length;
     const totalCount = fictionCount+nonFictionCount;
@@ -197,10 +194,7 @@ function renderPieChart(id, dataObj){
     const chart = new Chart(ctx,{
         type:'pie',
         data:{labels,data,datasets:[{data,backgroundColor:["#f87171","#60a5fa","#34d399","#facc15","#a78bfa","#fb7185","#fbbf24","#38bdf8","#a3e635","#c084fc"]}]},
-        options:{
-            responsive:true,
-            maintainAspectRatio:false,
-            aspectRatio:1,
+        options:{responsive:true, maintainAspectRatio:false, aspectRatio:1,
             plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:8}}}
         }
     });
@@ -214,11 +208,10 @@ function renderCharts(books){
     books.forEach(b=>{
         const g = b.Genre.trim() || "Other";
         genreCount[g]=(genreCount[g]||0)+1;
-        if(b.Gender) genderCount[b.Gender]=(genderCount[b.Gender]||0)+1;
         if(b.Language) langCount[b.Language]=(langCount[b.Language]||0)+1;
     });
     renderPieChart("genreChart",genreCount);
-    renderPieChart("genderChart",genderCount);
+    renderPieChart("genderChart",{}); // Hide gender chart if you don't want it
     renderPieChart("languageChart",langCount);
 }
 
