@@ -9,31 +9,34 @@
 </head>
 <body class="bg-gray-50 font-sans p-6">
 
-<h1 class="text-3xl font-bold mb-6 text-center">📚 2026 Reading Tracker</h1>
+<h1 class="text-3xl font-bold mb-6 text-center text-gradient bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">📚 2026 Reading Tracker</h1>
 
 <!-- 2x2 grid -->
 <div class="grid md:grid-cols-2 gap-6 mb-6">
 
   <!-- A: Currently Reading -->
-  <div id="currentlyReading" class="bg-white p-4 rounded shadow overflow-auto max-h-[400px]"></div>
+  <div id="currentlyReading" class="bg-white p-4 rounded-lg shadow-lg overflow-auto max-h-[400px]"></div>
 
-  <!-- B: Stats and other info -->
+  <!-- B: Stats -->
   <div class="space-y-4">
-    <div id="stats" class="bg-white p-4 rounded shadow text-center"></div>
+    <div id="stats" class="bg-white p-4 rounded-lg shadow-lg text-center"></div>
   </div>
 
-  <!-- C: Genre Pie Chart -->
-  <div class="bg-white p-4 rounded shadow flex items-center justify-center">
-    <canvas id="genreChart"></canvas>
+  <!-- C: Genre Pie Chart (smaller) -->
+  <div class="bg-white p-4 rounded-lg shadow-lg flex items-center justify-center">
+    <canvas id="genreChart" width="200" height="200"></canvas>
   </div>
 
   <!-- D: Bars -->
   <div class="space-y-4">
-    <div id="readProgressBar" class="bg-white p-4 rounded shadow"></div>
-    <div id="fictionBar" class="bg-white p-4 rounded shadow"></div>
+    <div id="readProgressBar" class="bg-white p-4 rounded-lg shadow-lg"></div>
+    <div id="fictionBar" class="bg-white p-4 rounded-lg shadow-lg"></div>
   </div>
 
 </div>
+
+<!-- Timeline of finished books -->
+<div id="timeline" class="bg-white rounded-lg shadow-lg p-4 mb-6 overflow-x-auto flex space-x-4"></div>
 
 <!-- All books list -->
 <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
@@ -105,16 +108,34 @@ function renderCurrentlyReading(books){
     div.innerHTML = `<p class="text-lg font-semibold mb-2">📖 Currently Reading</p>`;
     currentlyReadingBooks.forEach(book=>{
         div.innerHTML += `
-        <div class="bg-gray-50 rounded shadow p-2 mb-2 flex">
+        <div class="bg-gray-50 rounded shadow p-2 mb-2 flex hover:shadow-lg transition">
             <img src="${book.cover}" onerror="this.src='${PLACEHOLDER_COVER}'" class="w-24 h-36 mr-2 object-cover rounded">
             <div class="text-sm">
-                <p><strong>${book.Book}</strong></p>
+                <p class="font-semibold truncate">${book.Book}</p>
                 <p>Author: ${book.Author || "Unknown"}</p>
-                <p>Genre: ${book.Genre || "Unknown"}</p>
+                <p>Genre: ${book.apiGenre || book.Genre || "Unknown"}</p>
                 <p>Read: ${book.Read || "Not marked"}</p>
                 <p>Date Finished: ${book["Date Finished"] || "-"}</p>
                 <p>Rating: ${book.Rating || "-"}</p>
             </div>
+        </div>`;
+    });
+}
+
+// Render timeline of finished books
+function renderTimeline(books){
+    const timelineDiv = document.getElementById("timeline");
+    const finishedBooks = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").sort((a,b)=>{
+        return new Date(a["Date Finished"]) - new Date(b["Date Finished"]);
+    });
+    if(finishedBooks.length===0){ timelineDiv.innerHTML=""; return; }
+    timelineDiv.innerHTML = `<p class="text-lg font-semibold mr-4 flex-shrink-0">Timeline</p>`;
+    finishedBooks.forEach(book=>{
+        timelineDiv.innerHTML += `
+        <div class="flex-shrink-0 w-32 flex flex-col items-center">
+            <img src="${book.cover}" onerror="this.src='${PLACEHOLDER_COVER}'" class="w-24 h-36 rounded shadow mb-1">
+            <p class="text-xs text-center truncate">${book.Book}</p>
+            <p class="text-xs text-gray-500">${book["Date Finished"]}</p>
         </div>`;
     });
 }
@@ -131,7 +152,7 @@ function renderBooks(books){
             <img src="${book.cover}" onerror="this.src='${PLACEHOLDER_COVER}'" class="w-32 h-48 mb-2 object-cover rounded shadow">
             <h2 class="font-bold text-lg mb-1 text-center">${book.Book}</h2>
             <p class="text-sm text-center"><strong>Author:</strong> ${book.Author || "Unknown"}</p>
-            <p class="text-sm text-center"><strong>Genre:</strong> ${book.Genre || "Unknown"}</p>
+            <p class="text-sm text-center"><strong>Genre:</strong> ${book.apiGenre || book.Genre || "Unknown"}</p>
             <p class="text-sm text-center"><strong>Read:</strong> ${book.Read || "Not marked"}</p>
             <p class="text-sm text-center"><strong>Date Finished:</strong> ${book["Date Finished"] || "-"}</p>
             <p class="text-sm text-center"><strong>Rating:</strong> ${book.Rating || "-"}</p>
@@ -184,8 +205,8 @@ function renderStatsAndCharts(books){
     `;
 
     // Fiction vs Non-Fiction
-    const fictionCount = books.filter(b=>b.Genre && b.Genre.toLowerCase().includes("fiction")).length;
-    const nonFictionCount = books.filter(b=>b.Genre && b.Genre.toLowerCase().includes("non-fiction")).length;
+    const fictionCount = books.filter(b=>b.apiGenre && b.apiGenre.toLowerCase().includes("fiction")).length;
+    const nonFictionCount = books.filter(b=>b.apiGenre && b.apiGenre.toLowerCase().includes("non-fiction")).length;
     const totalCount = fictionCount + nonFictionCount;
     const fictionPercent = totalCount? (fictionCount/totalCount*100):0;
     const nonFictionPercent = totalCount? (nonFictionCount/totalCount*100):0;
@@ -198,11 +219,12 @@ function renderStatsAndCharts(books){
         <p class="text-sm mt-1">Fiction: ${fictionCount}, Non-Fiction: ${nonFictionCount}</p>
     `;
 
-    // Pie chart
+    // Pie chart using API genres
     const genreCount = {};
     books.forEach(b=>{
-        let g = b.apiGenre || b.Genre || "Unknown";
-        genreCount[g] = (genreCount[g]||0)+1;
+        if(b.apiGenre){
+            genreCount[b.apiGenre] = (genreCount[b.apiGenre]||0)+1;
+        }
     });
     new Chart(document.getElementById("genreChart"),{
         type:'pie',
@@ -231,6 +253,7 @@ async function init(){
 
     renderCurrentlyReading(orderedBooks);
     renderStatsAndCharts(orderedBooks);
+    renderTimeline(orderedBooks);
     renderBooks(finished); // render finished books in bookList
 
     // Fetch Open Library info async
@@ -244,6 +267,8 @@ async function init(){
         }
         updateBookCard(book);
         renderStatsAndCharts(orderedBooks);
+        renderTimeline(orderedBooks);
+        renderCurrentlyReading(orderedBooks);
     });
 }
 
