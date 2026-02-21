@@ -13,10 +13,12 @@
 .progress-text { position: absolute; width: 100%; text-align: center; font-weight: bold; top:0; line-height:1.5rem; }
 .chart-container { width: 10rem; height: 10rem; position: relative; }
 .chart-title { text-align:center; font-weight:bold; margin-bottom:0.25rem; }
-.book-cover { width: 120px; height: 180px; object-fit:cover; margin:0.5rem auto; display:block; border-radius:0.25rem; }
+.book-cover { width: 120px; height: 180px; object-fit:cover; border-radius:0.25rem; }
 .book-item { background: #f9fafb; padding:0.75rem; border-radius:0.25rem; transition-transform transform hover:-translate-y-1; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 .book-item:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-.book-info { text-align:center; margin-top:0.5rem; }
+.book-top { font-bold text-2xl mb-2 }
+.book-content { display:flex; gap:1rem; }
+.book-info { display:flex; flex-direction:column; justify-content:flex-start; }
 </style>
 </head>
 <body class="bg-gray-50 font-sans p-6">
@@ -119,11 +121,17 @@ function renderCurrentlyReading(books){
     current.forEach(b=>{
         div.innerHTML += `
             <div class="book-item">
-                <p class="font-bold text-xl text-center mb-2">${b.Book}</p>
-                ${b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : ""}
-                <div class="book-info">
-                  <p>Author: ${b.Author || "Unknown"}</p>
-                  <p>Genre: ${b.Genre || b.Fiction || "Unknown"}</p>
+                <p class="text-2xl font-bold mb-2">${b.Book}</p>
+                <div class="book-content">
+                    ${b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : ""}
+                    <div class="book-info">
+                        <p><strong>Author:</strong> ${b.Author}</p>
+                        <p><strong>Genre:</strong> ${b.Genre || b.Fiction}</p>
+                        <p><strong>Fiction/Non-Fiction:</strong> ${b.Fiction}</p>
+                        <p><strong>Language:</strong> ${b.Language}</p>
+                        <p><strong>Rating:</strong> <span class="star">${renderStars(b.Rating)}</span></p>
+                        <p><strong>Date Finished:</strong> ${b["Date Finished"]}</p>
+                    </div>
                 </div>
             </div>`;
     });
@@ -133,23 +141,26 @@ function renderBooks(books){
     const bookList=document.getElementById("bookList");
     bookList.innerHTML="";
     books.forEach(b=>{
-        const stars = renderStars(b.Rating);
         bookList.innerHTML += `
             <div class="book-item">
-                <p class="font-bold text-xl text-center mb-2">${b.Book}</p>
-                ${b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : ""}
-                <div class="book-info">
-                  <p><strong>Author:</strong> ${b.Author}</p>
-                  <p><strong>Genre:</strong> ${b.Genre || b.Fiction}</p>
-                  <p><strong>Fiction/Non-Fiction:</strong> ${b.Fiction}</p>
-                  <p><strong>Language:</strong> ${b.Language}</p>
-                  <p><strong>Date Finished:</strong> ${b["Date Finished"]}</p>
-                  <p><strong>Rating:</strong> <span class="star">${stars}</span></p>
+                <p class="text-2xl font-bold mb-2">${b.Book}</p>
+                <div class="book-content">
+                    ${b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : ""}
+                    <div class="book-info">
+                        <p><strong>Author:</strong> ${b.Author}</p>
+                        <p><strong>Genre:</strong> ${b.Genre || b.Fiction}</p>
+                        <p><strong>Fiction/Non-Fiction:</strong> ${b.Fiction}</p>
+                        <p><strong>Language:</strong> ${b.Language}</p>
+                        <p><strong>Rating:</strong> <span class="star">${renderStars(b.Rating)}</span></p>
+                        <p><strong>Date Finished:</strong> ${b["Date Finished"]}</p>
+                    </div>
                 </div>
             </div>
         `;
     });
 }
+
+// Stats and bars remain unchanged (code omitted for brevity in this snippet)
 
 function renderStatsAndBars(books){
     const finishedBooks = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
