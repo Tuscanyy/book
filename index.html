@@ -6,7 +6,6 @@
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
-<!-- Use Inter font -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 body { font-family: 'Inter', sans-serif; background-color: #f9fafb; }
@@ -18,10 +17,11 @@ body { font-family: 'Inter', sans-serif; background-color: #f9fafb; }
 .chart-title { text-align:center; font-weight:bold; margin-bottom:0.25rem; }
 .book-item { background: #ffffff; padding:1rem; border-radius:0.5rem; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 .book-item:hover { transform: translateY(-4px); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-.book-title { font-weight: 700; font-size: 1.25rem; margin-bottom: 0.75rem; }
-.book-content { display: flex; gap: 1rem; align-items: flex-start; }
+/* Book card flex layout scoped only inside .book-content */
+.book-content { display:flex; gap: 1rem; align-items:flex-start; }
 .book-cover { width: 120px; height: 180px; object-fit: cover; border-radius:0.25rem; }
 .book-info { display: flex; flex-direction: column; justify-content: flex-start; }
+.book-title { font-weight: 700; font-size: 1.25rem; margin-bottom: 0.75rem; text-align: left; }
 </style>
 </head>
 <body class="p-6">
@@ -29,6 +29,7 @@ body { font-family: 'Inter', sans-serif; background-color: #f9fafb; }
 <h1 class="text-3xl font-bold mb-6 text-center">📚 Dan's Book Tracker</h1>
 
 <div class="grid md:grid-cols-2 gap-6 mb-6">
+
   <!-- Currently Reading -->
   <div id="currentlyReading" class="bg-white p-4 rounded-lg shadow-lg overflow-auto max-h-[400px]"></div>
 
