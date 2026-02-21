@@ -6,6 +6,11 @@
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
+<style>
+.star { color: gold; font-size: 1.1em; }
+.progress-marker { position: absolute; width: 2px; background: red; top: 0; bottom: 0; }
+.progress-container { position: relative; height: 1.5rem; }
+</style>
 </head>
 <body class="bg-gray-50 font-sans p-6">
 
@@ -24,9 +29,9 @@
 
   <!-- C: Pie Charts Row -->
   <div class="bg-white p-4 rounded-lg shadow-lg flex justify-around">
-    <canvas id="genreChart" width="140" height="160"></canvas>
-    <canvas id="genderChart" width="140" height="160"></canvas>
-    <canvas id="languageChart" width="140" height="160"></canvas>
+    <canvas id="genreChart" width="140" height="140"></canvas>
+    <canvas id="genderChart" width="140" height="140"></canvas>
+    <canvas id="languageChart" width="140" height="140"></canvas>
   </div>
 
   <!-- D: Fiction / Non-Fiction Bar & Reading Progress -->
@@ -47,7 +52,6 @@
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
 let genreChartInstance=null, genderChartInstance=null, languageChartInstance=null;
 
-// Fetch and parse spreadsheet
 async function fetchBooks(){
     const debugDiv = document.getElementById("debug");
     try {
@@ -58,14 +62,14 @@ async function fetchBooks(){
         const books = data.slice(5).map((row,index)=>({
             Book: row[0]||"",
             Author: row[1]||"",
-            Fiction: row[2]||"",  // Column C
+            Fiction: row[2]||"",
             Read: row[3]||"",
             "Date Finished": row[4]||"",
             Rating: row[5]||"",
             Notes: row[6]||"",
-            Gender: row[7]||"",    // Column H
-            Language: row[8]||"",  // Column I
-            Genre: row[9]||"Other",     // Column J, default "Other"
+            Gender: row[7]||"",
+            Language: row[8]||"",
+            Genre: row[9]?.trim() || "Other",
             _rowIndex:index+6
         }));
         debugDiv.innerHTML += `<p>Total books parsed: ${books.length}</p>`;
@@ -76,7 +80,16 @@ async function fetchBooks(){
     }
 }
 
-// Render currently reading
+// Generate star rating (supports half stars)
+function renderStars(rating){
+    if(!rating) return "-";
+    let r = parseFloat(rating);
+    const fullStars = Math.floor(r);
+    const halfStar = (r - fullStars) >= 0.5 ? 1 : 0;
+    const emptyStars = 5 - fullStars - halfStar;
+    return '★'.repeat(fullStars) + (halfStar?'⯨':'') + '☆'.repeat(emptyStars);
+}
+
 function renderCurrentlyReading(books){
     const div = document.getElementById("currentlyReading");
     const current = books.filter(b=>!b.Read || b.Read.toLowerCase()!=="finished");
@@ -93,12 +106,11 @@ function renderCurrentlyReading(books){
     });
 }
 
-// Render all books
 function renderBooks(books){
     const bookList=document.getElementById("bookList");
     bookList.innerHTML="";
     books.forEach(b=>{
-        const stars = b.Rating ? "★".repeat(Math.round(Number(b.Rating))) : "-";
+        const stars = renderStars(b.Rating);
         bookList.innerHTML += `
             <div class="bg-white p-4 rounded shadow hover:shadow-lg transition">
                 <p class="font-bold text-lg mb-1">${b.Book}</p>
@@ -109,13 +121,12 @@ function renderBooks(books){
                 <p><strong>Language:</strong> ${b.Language}</p>
                 <p><strong>Read:</strong> ${b.Read}</p>
                 <p><strong>Date Finished:</strong> ${b["Date Finished"]}</p>
-                <p><strong>Rating:</strong> ${stars}</p>
+                <p><strong>Rating:</strong> <span class="star">${stars}</span></p>
             </div>
         `;
     });
 }
 
-// Render stats and bars
 function renderStatsAndBars(books){
     const totalBooks = books.length;
     const finishedBooks = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
@@ -129,15 +140,18 @@ function renderStatsAndBars(books){
         <p class="text-lg"><strong>Average Rating:</strong> ${avgRating}</p>
     `;
 
-    // Reading progress
+    // Reading progress with marker
     const today=new Date(), start=new Date(today.getFullYear(),0,1), end=new Date(today.getFullYear(),11,31);
     const yearFraction = (today-start)/(end-start);
     const expectedBooks = Math.floor(100*yearFraction);
     const percent = Math.min((finishedBooks/100)*100,100);
+    const markerPercent = Math.min((expectedBooks/100)*100,100);
+
     document.getElementById("readProgressBar").innerHTML=`
         <p class="text-lg font-semibold mb-1">Reading Progress</p>
-        <div class="w-full bg-gray-300 rounded-full h-6">
+        <div class="progress-container w-full bg-gray-300 rounded-full h-6 relative">
             <div class="bg-green-500 h-6 rounded-full" style="width:${percent}%"></div>
+            <div class="progress-marker" style="left:${markerPercent}%"></div>
         </div>
         <p class="text-sm mt-1">Finished: ${finishedBooks}/100. Expected by now: ${expectedBooks}</p>
     `;
@@ -158,26 +172,24 @@ function renderStatsAndBars(books){
     `;
 }
 
-// Render pie charts
 function renderPieChart(id, dataObj){
     const labels = Object.keys(dataObj);
     const data = Object.values(dataObj);
     const ctx = document.getElementById(id);
-    ctx.width=140; ctx.height=160;
+    ctx.width=140; ctx.height=140;
     if(id==="genreChart" && genreChartInstance) genreChartInstance.destroy();
     if(id==="genderChart" && genderChartInstance) genderChartInstance.destroy();
     if(id==="languageChart" && languageChartInstance) languageChartInstance.destroy();
     const chart = new Chart(ctx,{
         type:'pie',
         data:{labels,data,datasets:[{data,backgroundColor:["#f87171","#60a5fa","#34d399","#facc15","#a78bfa","#fb7185","#fbbf24","#38bdf8","#a3e635","#c084fc"]}]},
-        options:{responsive:false, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}}}}
+        options:{responsive:false, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:8}}}}
     });
     if(id==="genreChart") genreChartInstance=chart;
     if(id==="genderChart") genderChartInstance=chart;
     if(id==="languageChart") languageChartInstance=chart;
 }
 
-// Process charts from columns
 function renderCharts(books){
     const genreCount={}, genderCount={}, langCount={};
     books.forEach(b=>{
@@ -191,7 +203,6 @@ function renderCharts(books){
     renderPieChart("languageChart",langCount);
 }
 
-// Main
 async function init(){
     const books = await fetchBooks();
     const notFinished=books.filter(b=>!b.Read || b.Read.toLowerCase()!=="finished");
