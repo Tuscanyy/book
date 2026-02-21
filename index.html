@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>2026 Reading Tracker</title>
+<title>2026 Reading Tracker (Debug)</title>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 font-sans p-6">
 
-<h1 class="text-3xl font-bold mb-6 text-center">📚 2026 Reading Tracker</h1>
+<h1 class="text-3xl font-bold mb-6 text-center">📚 2026 Reading Tracker (Debug)</h1>
 
 <!-- Stats Section -->
 <div id="stats" class="mb-6 text-center"></div>
@@ -22,10 +22,13 @@
 <!-- Books List -->
 <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
+<!-- Debug Section -->
+<div id="debug" class="mt-12 p-4 bg-gray-100 rounded shadow text-sm overflow-x-auto"></div>
+
 <script>
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
 
-// Fetch Open Library data for a book
+// Helper to fetch Open Library data
 async function fetchBookDetails(title, author) {
     if(!title) return null;
     const query = encodeURIComponent(title + (author ? " " + author : ""));
@@ -45,27 +48,38 @@ async function fetchBookDetails(title, author) {
     }
 }
 
-// Fetch and parse CSV
+// Fetch CSV and parse into books
 async function fetchBooks() {
-    const res = await fetch(CSV_URL);
-    if(!res.ok) throw new Error(res.statusText);
-    const text = await res.text();
-    const { data } = Papa.parse(text, { header: false, skipEmptyLines: true });
+    const debugDiv = document.getElementById("debug");
+    try {
+        const res = await fetch(CSV_URL);
+        debugDiv.innerHTML = `<p>CSV fetch status: ${res.status} ${res.statusText}</p>`;
+        const text = await res.text();
+        debugDiv.innerHTML += `<p>CSV preview (first 200 chars):<br>${text.slice(0,200)}</p>`;
 
-    // Slice to skip first 5 rows (A6 onward)
-    const books = data.slice(5).map((row, index) => ({
-        Book: row[0] || "",
-        Author: row[1] || "",
-        Genre: row[2] || "",
-        Read: row[3] || "",
-        "Date Finished": row[4] || "",
-        Rating: row[5] || "",
-        Notes: row[6] || "",
-        _rowIndex: index + 6,
-        cover: "https://via.placeholder.com/128x192?text=Loading..."
-    }));
+        if(!res.ok) throw new Error("CSV fetch failed");
 
-    return books;
+        const { data } = Papa.parse(text, { header: false, skipEmptyLines: true });
+        const books = data.slice(5).map((row,index)=>({
+            Book: row[0] || "",
+            Author: row[1] || "",
+            Genre: row[2] || "",
+            Read: row[3] || "",
+            "Date Finished": row[4] || "",
+            Rating: row[5] || "",
+            Notes: row[6] || "",
+            _rowIndex: index+6,
+            cover: "https://via.placeholder.com/128x192?text=Loading..."
+        }));
+
+        debugDiv.innerHTML += `<p>Total books parsed: ${books.length}</p>`;
+
+        return books;
+
+    } catch(err) {
+        debugDiv.innerHTML += `<p style="color:red;">Failed to load CSV: ${err}</p>`;
+        return [];
+    }
 }
 
 // Render book cards immediately
@@ -81,7 +95,7 @@ function renderBooks(books){
     books.forEach(book=>{
         const card = document.createElement("div");
         card.className = "bg-white p-4 rounded shadow hover:shadow-lg transition flex flex-col items-center";
-        card.id = "book-" + book._rowIndex; // use row index for later update
+        card.id = "book-" + book._rowIndex;
         card.innerHTML = `
             <img src="${book.cover}" class="w-32 h-48 mb-2 object-cover rounded shadow">
             <h2 class="font-bold text-lg mb-1 text-center">${book.Book}</h2>
@@ -146,28 +160,22 @@ function renderStats(books){
     });
 }
 
-// Main function
-async function init() {
-    try {
-        const books = await fetchBooks();
-        renderStats(books);
-        renderBooks(books);
+// Main init
+async function init(){
+    const books = await fetchBooks();
+    renderStats(books);
+    renderBooks(books);
 
-        // Fetch Open Library details asynchronously
-        books.forEach(async (book)=>{
-            const details = await fetchBookDetails(book.Book, book.Author);
-            if(details){
-                book.cover = details.cover || book.cover;
-                book.publish_year = details.publish_year || "";
-                book.subjects = details.subjects || [];
-            }
-            updateBookCard(book);
-        });
-
-    } catch(err){
-        console.error("Failed to load books:", err);
-        document.getElementById("bookList").innerHTML = "<p class='text-center col-span-full'>Failed to load books.</p>";
-    }
+    // Fetch Open Library details asynchronously
+    books.forEach(async (book)=>{
+        const details = await fetchBookDetails(book.Book, book.Author);
+        if(details){
+            book.cover = details.cover || book.cover;
+            book.publish_year = details.publish_year || "";
+            book.subjects = details.subjects || [];
+        }
+        updateBookCard(book);
+    });
 }
 
 init();
