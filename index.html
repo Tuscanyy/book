@@ -23,12 +23,15 @@
 
 <div class="grid md:grid-cols-2 gap-6 mb-6">
 
+  <!-- Currently Reading -->
   <div id="currentlyReading" class="bg-white p-4 rounded-lg shadow-lg overflow-auto max-h-[400px]"></div>
 
+  <!-- Stats -->
   <div class="space-y-4">
     <div id="stats" class="bg-white p-4 rounded-lg shadow-lg text-center"></div>
   </div>
 
+  <!-- Pie Charts -->
   <div class="bg-white p-4 rounded-lg shadow-lg flex justify-around flex-wrap">
     <div class="chart-container">
       <canvas id="genreChart"></canvas>
@@ -41,6 +44,7 @@
     </div>
   </div>
 
+  <!-- Bars -->
   <div class="space-y-4">
     <div id="fictionBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
     <div id="readProgressBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
@@ -48,8 +52,16 @@
 
 </div>
 
-<div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+<!-- Timeline -->
+<div class="bg-white p-4 rounded-lg shadow-lg mt-4">
+  <p class="text-lg font-semibold mb-2">📅 Reading Timeline</p>
+  <div id="timeline" class="relative h-12 flex items-center"></div>
+</div>
 
+<!-- Book list -->
+<div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4"></div>
+
+<!-- Debug -->
 <div id="debug" class="mt-12 p-4 bg-gray-100 rounded shadow text-sm overflow-x-auto"></div>
 
 <script>
@@ -207,6 +219,32 @@ function renderCharts(books){
     renderPieChart("languageChart",langCount);
 }
 
+// Timeline
+function renderTimeline(books){
+    const timelineDiv = document.getElementById("timeline");
+    timelineDiv.innerHTML = "";
+    const finishedBooks = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished");
+    if(finishedBooks.length===0) return;
+
+    const yearStart = new Date(new Date().getFullYear(),0,1);
+    const yearEnd = new Date(new Date().getFullYear(),11,31);
+
+    finishedBooks.forEach(b=>{
+        if(!b["Date Finished"]) return;
+        const date = new Date(b["Date Finished"]);
+        const percent = ((date - yearStart)/(yearEnd - yearStart))*100;
+        const dot = document.createElement("div");
+        dot.className="absolute w-4 h-4 bg-blue-500 rounded-full -mt-2 cursor-pointer";
+        dot.style.left = `calc(${percent}% - 0.5rem)`; // center the dot
+        dot.title = b.Book;
+        timelineDiv.appendChild(dot);
+    });
+
+    const line = document.createElement("div");
+    line.className="absolute top-1/2 w-full h-0.5 bg-gray-300";
+    timelineDiv.appendChild(line);
+}
+
 async function init(){
     const books = await fetchBooks();
     const notFinished=books.filter(b=>!b.Read || b.Read.toLowerCase()!=="finished");
@@ -217,6 +255,7 @@ async function init(){
     renderStatsAndBars(orderedBooks);
     renderBooks(finished);
     renderCharts(orderedBooks);
+    renderTimeline(orderedBooks);
 }
 
 init();
