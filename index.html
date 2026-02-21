@@ -17,11 +17,10 @@ body { font-family: 'Inter', sans-serif; background-color: #f9fafb; }
 .chart-title { text-align:center; font-weight:bold; margin-bottom:0.25rem; }
 .book-item { background: #ffffff; padding:1rem; border-radius:0.5rem; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 .book-item:hover { transform: translateY(-4px); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-/* Book card flex layout scoped only inside .book-content */
-.book-content { display:flex; gap: 1rem; align-items:flex-start; }
+.book-title { font-weight: 700; font-size: 1.25rem; margin-bottom: 0.75rem; text-align: left; }
+.book-content { display:flex; gap:1rem; align-items:flex-start; }
 .book-cover { width: 120px; height: 180px; object-fit: cover; border-radius:0.25rem; }
 .book-info { display: flex; flex-direction: column; justify-content: flex-start; }
-.book-title { font-weight: 700; font-size: 1.25rem; margin-bottom: 0.75rem; text-align: left; }
 </style>
 </head>
 <body class="p-6">
@@ -59,6 +58,7 @@ body { font-family: 'Inter', sans-serif; background-color: #f9fafb; }
     <div id="fictionBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
     <div id="readProgressBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
   </div>
+
 </div>
 
 <!-- Book list -->
@@ -115,11 +115,12 @@ function renderCurrentlyReading(books){
     if(current.length===0){ div.innerHTML="No books currently reading"; return; }
     div.innerHTML = `<p class="text-lg font-semibold mb-2">📖 Currently Reading</p>`;
     current.forEach(b=>{
+        const coverHTML = b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : "";
         div.innerHTML += `
             <div class="book-item">
                 <p class="book-title">${b.Book}</p>
                 <div class="book-content">
-                    ${b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : ""}
+                    ${coverHTML}
                     <div class="book-info">
                         <p>Author: ${b.Author || "Unknown"}</p>
                         <p>Genre: ${b.Genre || b.Fiction || "Unknown"}</p>
@@ -134,11 +135,12 @@ function renderBooks(books){
     bookList.innerHTML="";
     books.forEach(b=>{
         const stars = renderStars(b.Rating);
+        const coverHTML = b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : "";
         bookList.innerHTML += `
             <div class="book-item">
                 <p class="book-title">${b.Book}</p>
                 <div class="book-content">
-                    ${b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : ""}
+                    ${coverHTML}
                     <div class="book-info">
                         <p><strong>Author:</strong> ${b.Author}</p>
                         <p><strong>Genre:</strong> ${b.Genre || b.Fiction}</p>
@@ -152,8 +154,8 @@ function renderBooks(books){
     });
 }
 
-// Stats, bars, and charts functions remain unchanged from last working version
-function renderStatsAndBars(books){ /* ... */ }
+// Stats, bars, and charts functions unchanged
+function renderStatsAndBars(books){ /* ... same as last working version ... */ }
 function renderPieChart(id,dataObj){ /* ... */ }
 function renderCharts(books){ /* ... */ }
 
