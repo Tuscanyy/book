@@ -23,7 +23,7 @@
   <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
   <!-- Raw Sheet Data Section -->
-  <h2 class="text-2xl font-bold mt-12 mb-4">Raw Sheet Data (first 10 rows)</h2>
+  <h2 class="text-2xl font-bold mt-12 mb-4">Raw Sheet Data (first 10 books)</h2>
   <div id="rawData" class="bg-white p-4 rounded shadow overflow-x-auto text-sm"></div>
 
   <script>
@@ -35,12 +35,23 @@
         if(!res.ok) throw new Error(res.statusText);
         const text = await res.text();
 
-        const { data, errors } = Papa.parse(text, { header: true, skipEmptyLines: true });
+        // Parse CSV
+        const { data, errors } = Papa.parse(text, { header: false, skipEmptyLines: true });
         if(errors.length) console.warn("CSV parse errors:", errors);
 
-        const books = data.map((row,index) => ({ ...row, _rowIndex: index + 2 }));
+        // Hardcoded mapping, skip first 5 rows
+        const books = data.slice(5).map((row, index) => ({
+          Book: row[0] || "",
+          Author: row[1] || "",
+          Genre: row[2] || "",
+          Read: row[3] || "",
+          "Date Finished": row[4] || "",
+          Rating: row[5] || "",
+          Notes: row[6] || "",
+          _rowIndex: index + 6
+        }));
 
-        // show first 10 rows for verification
+        // show first 10 books for verification
         document.getElementById("rawData").innerHTML = books.slice(0,10)
           .map(b => JSON.stringify(b, null, 2))
           .join("<br><br>");
