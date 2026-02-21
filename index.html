@@ -24,9 +24,9 @@
 
   <!-- C: Pie Charts Row -->
   <div class="bg-white p-4 rounded-lg shadow-lg flex justify-around">
-    <canvas id="genreChart" width="120" height="120"></canvas>
-    <canvas id="genderChart" width="120" height="120"></canvas>
-    <canvas id="languageChart" width="120" height="120"></canvas>
+    <canvas id="genreChart" width="140" height="160"></canvas>
+    <canvas id="genderChart" width="140" height="160"></canvas>
+    <canvas id="languageChart" width="140" height="160"></canvas>
   </div>
 
   <!-- D: Fiction / Non-Fiction Bar & Reading Progress -->
@@ -65,7 +65,7 @@ async function fetchBooks(){
             Notes: row[6]||"",
             Gender: row[7]||"",    // Column H
             Language: row[8]||"",  // Column I
-            Genre: row[9]||"",     // Column J
+            Genre: row[9]||"Other",     // Column J, default "Other"
             _rowIndex:index+6
         }));
         debugDiv.innerHTML += `<p>Total books parsed: ${books.length}</p>`;
@@ -98,6 +98,7 @@ function renderBooks(books){
     const bookList=document.getElementById("bookList");
     bookList.innerHTML="";
     books.forEach(b=>{
+        const stars = b.Rating ? "★".repeat(Math.round(Number(b.Rating))) : "-";
         bookList.innerHTML += `
             <div class="bg-white p-4 rounded shadow hover:shadow-lg transition">
                 <p class="font-bold text-lg mb-1">${b.Book}</p>
@@ -108,7 +109,7 @@ function renderBooks(books){
                 <p><strong>Language:</strong> ${b.Language}</p>
                 <p><strong>Read:</strong> ${b.Read}</p>
                 <p><strong>Date Finished:</strong> ${b["Date Finished"]}</p>
-                <p><strong>Rating:</strong> ${b.Rating}</p>
+                <p><strong>Rating:</strong> ${stars}</p>
             </div>
         `;
     });
@@ -162,14 +163,14 @@ function renderPieChart(id, dataObj){
     const labels = Object.keys(dataObj);
     const data = Object.values(dataObj);
     const ctx = document.getElementById(id);
-    ctx.width=120; ctx.height=120;
+    ctx.width=140; ctx.height=160;
     if(id==="genreChart" && genreChartInstance) genreChartInstance.destroy();
     if(id==="genderChart" && genderChartInstance) genderChartInstance.destroy();
     if(id==="languageChart" && languageChartInstance) languageChartInstance.destroy();
     const chart = new Chart(ctx,{
         type:'pie',
         data:{labels,data,datasets:[{data,backgroundColor:["#f87171","#60a5fa","#34d399","#facc15","#a78bfa","#fb7185","#fbbf24","#38bdf8","#a3e635","#c084fc"]}]},
-        options:{responsive:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}}}}
+        options:{responsive:false, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}}}}
     });
     if(id==="genreChart") genreChartInstance=chart;
     if(id==="genderChart") genderChartInstance=chart;
@@ -180,7 +181,8 @@ function renderPieChart(id, dataObj){
 function renderCharts(books){
     const genreCount={}, genderCount={}, langCount={};
     books.forEach(b=>{
-        if(b.Genre) genreCount[b.Genre]=(genreCount[b.Genre]||0)+1;
+        const g = b.Genre.trim() || "Other";
+        genreCount[g]=(genreCount[g]||0)+1;
         if(b.Gender) genderCount[b.Gender]=(genderCount[b.Gender]||0)+1;
         if(b.Language) langCount[b.Language]=(langCount[b.Language]||0)+1;
     });
