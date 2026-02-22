@@ -17,6 +17,7 @@ body {
   background-color: #f9fafb; 
 }
 
+/* Apply medieval font to titles only */
 h1, .book-title, .chart-title {
   font-family: 'Metamorphous', serif;
 }
@@ -30,6 +31,8 @@ h1, .book-title, .chart-title {
   top: 0; 
   bottom: 0; 
 }
+
+.progress-container { position: relative; height: 1.5rem; }
 
 .progress-text { 
   position: absolute; 
@@ -61,6 +64,7 @@ h1, .book-title, .chart-title {
   font-weight: 700; 
   font-size: 1.25rem; 
   margin-bottom: 0.75rem; 
+  text-align: left; 
 }
 
 .book-content { display:flex; gap:1rem; align-items:flex-start; }
@@ -72,7 +76,7 @@ h1, .book-title, .chart-title {
   border-radius:0.25rem; 
 }
 
-.book-info { display: flex; flex-direction: column; }
+.book-info { display: flex; flex-direction: column; justify-content: flex-start; }
 
 .description-box { 
   background:white; 
@@ -83,173 +87,235 @@ h1, .book-title, .chart-title {
 }
 </style>
 </head>
-
 <body class="p-6">
 
-<h1 class="text-3xl font-bold mb-6 text-center">
-📚 Dan's Book Tracker 2026
-</h1>
+<h1 class="text-3xl font-bold mb-6 text-center">📚 Dan's Book Tracker 2026</h1>
 
 <div class="grid md:grid-cols-2 gap-6 mb-6">
 
-<!-- Currently Reading -->
-<div id="currentlyReading" class="bg-white p-4 rounded-lg shadow-lg overflow-auto max-h-[400px]"></div>
+  <!-- Currently Reading -->
+  <div id="currentlyReading" class="bg-white p-4 rounded-lg shadow-lg overflow-auto max-h-[400px]"></div>
 
-<!-- Right Side -->
-<div class="space-y-4">
-  <div class="description-box">
-    In 2026 I decided I would read at least 100 books. I tracked them in a spreadsheet and eventually built this dashboard to show my progress and stats in a nicer form.
-  </div>
-  <div id="stats" class="bg-white p-4 rounded-lg shadow-lg text-center"></div>
-</div>
-
-<!-- Pie Charts -->
-<div class="bg-white p-4 rounded-lg shadow-lg flex justify-around flex-wrap gap-6">
-  <div class="text-center">
-    <div class="chart-title">Genre</div>
-    <div class="chart-container"><canvas id="genreChart"></canvas></div>
+  <!-- Right Side: Description + Stats -->
+  <div class="space-y-4">
+    <div class="description-box">
+      <p>In 2026 I decided I would read at least 100 books. I decided to track them in a spreadsheet and then eventually I made this to show my progress and relevant stats in a nicer form.</p>
+    </div>
+    <div id="stats" class="bg-white p-4 rounded-lg shadow-lg text-center"></div>
   </div>
 
-  <div class="text-center">
-    <div class="chart-title">Language</div>
-    <div class="chart-container"><canvas id="languageChart"></canvas></div>
+  <!-- Pie Charts -->
+  <div class="bg-white p-4 rounded-lg shadow-lg flex justify-around flex-wrap">
+    <div class="text-center">
+      <div class="chart-title">Genre</div>
+      <div class="chart-container"><canvas id="genreChart"></canvas></div>
+    </div>
+    <div class="text-center">
+      <div class="chart-title">Gender</div>
+      <div class="chart-container"><canvas id="genderChart"></canvas></div>
+    </div>
+    <div class="text-center">
+      <div class="chart-title">Language</div>
+      <div class="chart-container"><canvas id="languageChart"></canvas></div>
+    </div>
   </div>
 
-  <div class="text-center">
-    <div class="chart-title">Country of Origin</div>
-    <div class="chart-container"><canvas id="countryChart"></canvas></div>
+  <!-- Bars -->
+  <div class="space-y-4">
+    <div id="fictionBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
+    <div id="readProgressBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
   </div>
-</div>
-
-<!-- Bars -->
-<div class="space-y-4">
-  <div id="fictionBar" class="bg-white p-4 rounded-lg shadow-lg"></div>
-  <div id="genderBar" class="bg-white p-4 rounded-lg shadow-lg"></div>
-  <div id="readProgressBar" class="bg-white p-4 rounded-lg shadow-lg"></div>
-</div>
 
 </div>
 
-<!-- Finished Books -->
+<!-- Book list -->
 <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4"></div>
 
-<!-- LinkedIn -->
+<!-- LinkedIn link -->
 <div class="mt-6 text-center">
-  <a href="https://www.linkedin.com/in/daniel-moore-485b92120/" target="_blank" class="text-blue-600 underline">
-    Connect with me on LinkedIn
-  </a>
+  <a href="https://www.linkedin.com/in/daniel-moore-485b92120/" target="_blank" class="text-blue-600 underline">Connect with me on LinkedIn</a>
 </div>
 
-<script>
-const CSV_URL = ""https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv"";
+<!-- Debug -->
+<div id="debug" class="mt-12 p-4 bg-gray-100 rounded shadow text-sm overflow-x-auto"></div>
 
-let genreChartInstance, languageChartInstance, countryChartInstance;
+<script>
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
+let genreChartInstance=null, genderChartInstance=null, languageChartInstance=null;
 
 async function fetchBooks(){
-  const res = await fetch(CSV_URL);
-  const text = await res.text();
-  const { data } = Papa.parse(text,{header:false,skipEmptyLines:true});
-
-  return data.slice(5).map(row=>({
-    Book: row[0]||"",
-    Author: row[1]||"",
-    Fiction: row[2]||"",
-    Read: row[3]||"",
-    "Date Finished": row[4]||"",
-    Rating: row[5]||"",
-    Gender: row[7]||"",
-    Language: row[8]||"",
-    Genre: row[9]?.trim() || "Other",
-    Cover: row[10]||"",
-    Country: row[11] || "Unknown"
-  }));
+    const debugDiv = document.getElementById("debug");
+    try {
+        const res = await fetch(CSV_URL);
+        const text = await res.text();
+        debugDiv.innerHTML = `<p>CSV fetch status: ${res.status}</p>`;
+        const { data } = Papa.parse(text,{header:false,skipEmptyLines:true});
+        const books = data.slice(5).map((row,index)=>({
+            Book: row[0]||"",
+            Author: row[1]||"",
+            Fiction: row[2]||"",
+            Read: row[3]||"",
+            "Date Finished": row[4]||"",
+            Rating: row[5]||"",
+            Gender: row[7]||"",
+            Language: row[8]||"",
+            Genre: row[9]?.trim() || "Other",
+            Cover: row[10]||"",
+            _rowIndex:index+6
+        }));
+        debugDiv.innerHTML += `<p>Total books parsed: ${books.length}</p>`;
+        return books;
+    } catch(err){
+        debugDiv.innerHTML += `<p style="color:red;">Failed to fetch CSV: ${err}</p>`;
+        return [];
+    }
 }
 
-function renderPieChart(id, dataObj, instanceRef){
-  if(instanceRef) instanceRef.destroy();
+function renderStars(rating){
+    if(!rating) return "-";
+    let r = parseFloat(rating);
+    const fullStars = Math.floor(r);
+    const halfStar = (r - fullStars) >= 0.5 ? 1 : 0;
+    const emptyStars = 5 - fullStars - halfStar;
+    return '★'.repeat(fullStars) + (halfStar?'⯨':'') + '☆'.repeat(emptyStars);
+}
 
-  return new Chart(document.getElementById(id),{
-    type:'pie',
-    data:{
-      labels:Object.keys(dataObj),
-      datasets:[{
-        data:Object.values(dataObj),
-        backgroundColor:[
-          "#8B0000","#556B2F","#483D8B",
-          "#DAA520","#2F4F4F","#B22222",
-          "#6B8E23","#4682B4","#A0522D"
-        ]
-      }]
-    },
-    options:{responsive:true,maintainAspectRatio:false}
-  });
+// Currently Reading
+function renderCurrentlyReading(books){
+    const div = document.getElementById("currentlyReading");
+    div.innerHTML = `<p class="text-lg font-semibold mb-2">📖 Currently Reading</p>`; 
+    const current = books.filter(b=>!b.Read || b.Read.toLowerCase()!=="finished");
+    if(current.length===0){ div.innerHTML += "<p>No books currently reading</p>"; return; }
+    current.forEach(b=>{
+        const coverHTML = b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : "";
+        const infoHTML = `<div class="book-info">
+                            <p><strong>Author:</strong> ${b.Author}</p>
+                            <p><strong>Genre:</strong> ${b.Genre || b.Fiction}</p>
+                            <p><strong>Fiction/Non-Fiction:</strong> ${b.Fiction}</p>
+                            <p><strong>Language:</strong> ${b.Language}</p>
+                            <p><strong>Date Finished:</strong> ${b["Date Finished"]}</p>
+                          </div>`;
+        div.innerHTML += `<div class="book-item">
+                            <p class="book-title">${b.Book}</p>
+                            <div class="book-content">
+                              ${coverHTML}${infoHTML}
+                            </div>
+                          </div>`;
+    });
+}
+
+// Book list
+function renderBooks(books){
+    const bookList=document.getElementById("bookList");
+    bookList.innerHTML="";
+    books.forEach(b=>{
+        const stars = renderStars(b.Rating);
+        const coverHTML = b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : "";
+        const infoHTML = `<div class="book-info">
+                            <p><strong>Author:</strong> ${b.Author}</p>
+                            <p><strong>Genre:</strong> ${b.Genre || b.Fiction}</p>
+                            <p><strong>Fiction/Non-Fiction:</strong> ${b.Fiction}</p>
+                            <p><strong>Language:</strong> ${b.Language}</p>
+                            <p><strong>Date Finished:</strong> ${b["Date Finished"]}</p>
+                            <p><strong>Rating:</strong> <span class="star">${stars}</span></p>
+                          </div>`;
+        bookList.innerHTML += `<div class="book-item">
+                                 <p class="book-title">${b.Book}</p>
+                                 <div class="book-content">
+                                   ${coverHTML}${infoHTML}
+                                 </div>
+                               </div>`;
+    });
+}
+
+// Stats and bars
+function renderStatsAndBars(books){
+    const finishedBooks = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
+    const remaining = Math.max(100-finishedBooks,0);
+    const avgRating = books.filter(b=>b.Rating).length ? (books.filter(b=>b.Rating).reduce((s,b)=>s+Number(b.Rating),0)/books.filter(b=>b.Rating).length).toFixed(2) : "-";
+
+    document.getElementById("stats").innerHTML=`
+        <p class="text-lg"><strong>Finished:</strong> ${finishedBooks}</p>
+        <p class="text-lg"><strong>Remaining to 100:</strong> ${remaining}</p>
+        <p class="text-lg"><strong>Average Rating:</strong> ${avgRating}</p>
+    `;
+
+    const today=new Date(), start=new Date(today.getFullYear(),0,1), end=new Date(today.getFullYear(),11,31);
+    const yearFraction = (today-start)/(end-start);
+    const expectedBooks = Math.floor(100*yearFraction);
+    const percent = Math.min((finishedBooks/100)*100,100);
+    const markerPercent = Math.min((expectedBooks/100)*100,100);
+
+    document.getElementById("readProgressBar").innerHTML=`
+        <p class="text-lg font-semibold mb-1">Reading Progress</p>
+        <div class="w-full bg-gray-300 h-6 relative">
+            <div class="bg-green-500 h-6" style="width:${percent}%"></div>
+            <div class="progress-marker" style="left:${markerPercent}%"></div>
+            <div class="progress-text">${finishedBooks} / 100 (Expected: ${expectedBooks})</div>
+        </div>
+    `;
+
+    const fictionCount = books.filter(b=>b.Fiction.toLowerCase().includes("fiction")).length;
+    const nonFictionCount = books.filter(b=>b.Fiction.toLowerCase().includes("non-fiction")).length;
+    const totalCount = fictionCount+nonFictionCount;
+    const fictionPercent = totalCount ? (fictionCount/totalCount*100):0;
+    const nonFictionPercent = totalCount ? (nonFictionCount/totalCount*100):0;
+    document.getElementById("fictionBar").innerHTML=`
+        <p class="text-lg font-semibold mb-1">Fiction vs Non-Fiction</p>
+        <div class="w-full bg-gray-300 h-6 flex relative">
+            <div class="bg-blue-500 h-6" style="width:${fictionPercent}%"></div>
+            <div class="bg-yellow-500 h-6" style="width:${nonFictionPercent}%"></div>
+            <div class="progress-text">Fiction: ${fictionCount}, Non-Fiction: ${nonFictionCount}</div>
+        </div>
+    `;
+}
+
+// Pie charts
+function renderPieChart(id, dataObj){
+    const labels = Object.keys(dataObj);
+    const data = Object.values(dataObj);
+    const ctx = document.getElementById(id);
+    if(id==="genreChart" && genreChartInstance) genreChartInstance.destroy();
+    if(id==="genderChart" && genderChartInstance) genderChartInstance.destroy();
+    if(id==="languageChart" && languageChartInstance) languageChartInstance.destroy();
+    const chart = new Chart(ctx,{
+        type:'pie',
+        data:{labels,data,datasets:[{data,backgroundColor:["#f87171","#60a5fa","#34d399","#facc15","#a78bfa","#fb7185","#fbbf24","#38bdf8","#a3e635","#c084fc"]}]},
+        options:{responsive:true, maintainAspectRatio:false, aspectRatio:1,
+            plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:8}}}
+        }
+    });
+    if(id==="genreChart") genreChartInstance=chart;
+    if(id==="genderChart") genderChartInstance=chart;
+    if(id==="languageChart") languageChartInstance=chart;
 }
 
 function renderCharts(books){
-  const genre={}, language={}, country={};
-
-  books.forEach(b=>{
-    genre[b.Genre]=(genre[b.Genre]||0)+1;
-    if(b.Language) language[b.Language]=(language[b.Language]||0)+1;
-    country[b.Country]=(country[b.Country]||0)+1;
-  });
-
-  genreChartInstance = renderPieChart("genreChart",genre,genreChartInstance);
-  languageChartInstance = renderPieChart("languageChart",language,languageChartInstance);
-  countryChartInstance = renderPieChart("countryChart",country,countryChartInstance);
-}
-
-function renderStatsAndBars(books){
-
-  const fiction = books.filter(b=>b.Fiction.toLowerCase().includes("fiction")).length;
-  const nonFiction = books.filter(b=>b.Fiction.toLowerCase().includes("non-fiction")).length;
-
-  const male = books.filter(b=>b.Gender.toLowerCase().includes("male")).length;
-  const female = books.filter(b=>b.Gender.toLowerCase().includes("female")).length;
-
-  const finished = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
-  const percent = Math.min((finished/100)*100,100);
-
-  document.getElementById("stats").innerHTML=`
-    <p><strong>Finished:</strong> ${finished}</p>
-    <p><strong>Remaining to 100:</strong> ${100-finished}</p>
-  `;
-
-  document.getElementById("fictionBar").innerHTML=`
-    <p class="font-semibold mb-1">Fiction vs Non-Fiction</p>
-    <div class="w-full bg-gray-300 h-6 flex relative">
-      <div style="background:#355c7d;width:${fiction/(fiction+nonFiction)*100}%"></div>
-      <div style="background:#d9a441;width:${nonFiction/(fiction+nonFiction)*100}%"></div>
-      <div class="progress-text">Fiction: ${fiction} | Non-Fiction: ${nonFiction}</div>
-    </div>
-  `;
-
-  document.getElementById("genderBar").innerHTML=`
-    <p class="font-semibold mb-1">Male vs Female Authors</p>
-    <div class="w-full bg-gray-300 h-6 flex relative">
-      <div style="background:#6b7280;width:${male/(male+female)*100}%"></div>
-      <div style="background:#ec4899;width:${female/(male+female)*100}%"></div>
-      <div class="progress-text">Male: ${male} | Female: ${female}</div>
-    </div>
-  `;
-
-  document.getElementById("readProgressBar").innerHTML=`
-    <p class="font-semibold mb-1">Reading Progress</p>
-    <div class="w-full bg-gray-300 h-6 relative">
-      <div style="background:#2e7d32;width:${percent}%;height:100%"></div>
-      <div class="progress-text">${finished}/100</div>
-    </div>
-  `;
+    const genreCount={}, genderCount={}, langCount={};
+    books.forEach(b=>{
+        const g = b.Genre.trim() || "Other";
+        genreCount[g]=(genreCount[g]||0)+1;
+        if(b.Gender) genderCount[b.Gender]=(genderCount[b.Gender]||0)+1;
+        if(b.Language) langCount[b.Language]=(langCount[b.Language]||0)+1;
+    });
+    renderPieChart("genreChart",genreCount);
+    renderPieChart("genderChart",genderCount);
+    renderPieChart("languageChart",langCount);
 }
 
 async function init(){
-  const books = await fetchBooks();
-  renderStatsAndBars(books);
-  renderCharts(books);
+    const books = await fetchBooks();
+    const notFinished=books.filter(b=>!b.Read || b.Read.toLowerCase()!=="finished");
+    const finished=books.filter(b=>b.Read && b.Read.toLowerCase()==="finished");
+    const orderedBooks=[...notFinished,...finished];
+
+    renderCurrentlyReading(orderedBooks);
+    renderStatsAndBars(orderedBooks);
+    renderBooks(finished);
+    renderCharts(orderedBooks);
 }
 
 init();
 </script>
-
 </body>
 </html>
