@@ -214,32 +214,41 @@ function renderCurrentlyReading(books){
 }
 
 function renderBooks(books){
-    const bookList=document.getElementById("bookList");
-    bookList.innerHTML="";
+    const bookList = document.getElementById("bookList");
+    bookList.innerHTML = "";
     // flip order: last row in CSV first
-    const sorted = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").reverse();
-    sorted.forEach(b=>{
-        const stars = renderStars(b.Rating);
-        const coverHTML = b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : "";
-        
-        // Decide color for the bar based on Fiction/Non-Fiction
-        let barColor = "#3b82f6"; // default blue
-        if(b.Fiction.toLowerCase().includes("non-fiction")) barColor="#f59e0b"; // amber/orange
+    const sorted = books.filter(b => b.Read && b.Read.toLowerCase() === "finished").reverse();
 
-        const infoHTML = `<div class="book-info">
-                            <p class="book-title">${b.Book}</p>
-                            <div style="height:4px; width:100%; background:${barColor}; border-radius:2px; margin-bottom:0.5rem;"></div>
-                            <p><strong>Author:</strong> ${b.Author}</p>
-                            <p><strong>Genre:</strong> ${b.Genre || b.Fiction}</p>
-                            <p><strong>Fiction/Non-Fiction:</strong> ${b.Fiction}</p>
-                            <p><strong>Language:</strong> ${b.Language}</p>
-                            <p><strong>Date Finished:</strong> ${b["Date Finished"]}</p>
-                            <p><strong>Rating:</strong> <span class="star">${stars}</span></p>
-                          </div>`;
-        bookList.innerHTML += `<div class="book-item">
-                                 ${coverHTML}
-                                 ${infoHTML}
-                               </div>`;
+    sorted.forEach(b => {
+        const stars = renderStars(b.Rating);
+
+        // Decide color for the bar based on Fiction/Non-Fiction
+        let barColor = "#3b82f6"; // blue for Fiction
+        if(b.Fiction.toLowerCase().includes("non-fiction")) barColor = "#f59e0b"; // orange for Non-Fiction
+
+        const coverHTML = b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : "";
+
+        const infoHTML = `
+            <div class="book-info">
+                <p class="book-title">${b.Book}</p>
+                <div style="height:4px; width:100%; background:${barColor}; border-radius:2px; margin-bottom:0.5rem;"></div>
+                <p><strong>Author:</strong> ${b.Author}</p>
+                <p><strong>Genre:</strong> ${b.Genre || b.Fiction}</p>
+                <p><strong>Fiction/Non-Fiction:</strong> ${b.Fiction}</p>
+                <p><strong>Language:</strong> ${b.Language}</p>
+                <p><strong>Date Finished:</strong> ${b["Date Finished"]}</p>
+                <p><strong>Rating:</strong> <span class="star">${stars}</span></p>
+            </div>
+        `;
+
+        bookList.innerHTML += `
+            <div class="book-item">
+                <div class="book-content">
+                    ${coverHTML}
+                    ${infoHTML}
+                </div>
+            </div>
+        `;
     });
 }
 
