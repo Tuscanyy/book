@@ -73,9 +73,15 @@ h1, .book-title, .chart-title {
   box-shadow:0 4px 12px rgba(0,0,0,0.3);
 }
 
-.book-info { flex:1; }
+.book-info {
+  flex:1;
+}
 
-.chart-container { width:12rem; height:12rem; position:relative; }
+.chart-container { 
+  width:12rem; 
+  height:12rem; 
+  position:relative; 
+}
 
 .progress-text { 
   position:absolute; 
@@ -143,16 +149,15 @@ h1, .book-title, .chart-title {
 <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
 <script>
+const CSV_URL = "YOUR_CSV_LINK_HERE";
 
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
-
-let genreChartInstance, languageChartInstance, countryChartInstance;
+let genreChartInstance=null, languageChartInstance=null, countryChartInstance=null;
 
 async function fetchBooks(){
   const res = await fetch(CSV_URL);
   const text = await res.text();
   const { data } = Papa.parse(text,{header:false,skipEmptyLines:true});
-  return data.slice(5).map(row=>({
+  return data.slice(5).map((row,index)=>({
     Book: row[0]||"",
     Author: row[1]||"",
     Fiction: row[2]||"",
@@ -161,35 +166,27 @@ async function fetchBooks(){
     Rating: row[5]||"",
     Gender: row[7]||"",
     Language: row[8]||"",
-    Genre: row[9]||"Other",
+    Genre: row[9]?.trim() || "Other",
     Country: row[11]||"",
-    Cover: row[10]||""
+    Cover: row[10]||"",
+    _rowIndex:index
   }));
 }
 
-function renderCurrentlyReading(books){
-  const div=document.getElementById("currentlyReading");
-  div.innerHTML="<h2 class='text-lg font-semibold mb-3'>📖 Currently Reading</h2>";
-  const current=books.filter(b=>!b.Read || b.Read.toLowerCase()!=="finished");
-  if(!current.length){ div.innerHTML+="<p>No books currently reading.</p>"; return;}
-  current.forEach(b=>{
-    div.innerHTML+=`
-      <div class="mb-4">
-        <p class="font-bold">${b.Book}</p>
-        <p>${b.Author}</p>
-      </div>
-    `;
-  });
+function renderStars(r){
+  if(!r) return "-";
+  r=parseFloat(r);
+  return "★".repeat(Math.floor(r)) + "☆".repeat(5-Math.floor(r));
 }
 
 function renderBooks(books){
   const container=document.getElementById("bookList");
   container.innerHTML="";
-  const finished=books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").reverse();
+  const finished=books.filter(b=>b.Read.toLowerCase()==="finished").reverse();
 
   finished.forEach(b=>{
     let barColor="#64748b";
-    if((b.Fiction||"").toLowerCase().includes("non")) barColor="#c9a227";
+    if(b.Fiction.toLowerCase().includes("non")) barColor="#c9a227";
 
     container.innerHTML+=`
       <div class="book-item">
@@ -202,7 +199,7 @@ function renderBooks(books){
             <p><strong>Genre:</strong> ${b.Genre}</p>
             <p><strong>Language:</strong> ${b.Language}</p>
             <p><strong>Date:</strong> ${b["Date Finished"]}</p>
-            <p><strong>Rating:</strong> ${b.Rating}</p>
+            <p><strong>Rating:</strong> ${renderStars(b.Rating)}</p>
           </div>
         </div>
       </div>
@@ -210,39 +207,81 @@ function renderBooks(books){
   });
 }
 
+function renderProgress(books){
+  const finished=books.filter(b=>b.Read.toLowerCase()==="finished").length;
+  const percent=(finished/100)*100;
+
+  document.getElementById("readProgressBar").innerHTML=`
+    <p class="text-lg font-semibold mb-2">Reading Progress</p>
+    <div class="w-full bg-slate-700 h-8 relative rounded overflow-hidden">
+      <div style="width:${percent}%;background:#c9a227;height:100%;"></div>
+      <div class="progress-text">${finished} / 100</div>
+    </div>
+  `;
+}
+
+function renderHorizontalBar(id,title,dataObj){
+  const total=Object.values(dataObj).reduce((a,b)=>a+b,0);
+  const container=document.getElementById(id);
+  container.innerHTML=`<p class="text-lg font-semibold mb-3">${title}</p>`;
+
+  const wrapper=document.createElement("div");
+  wrapper.className="flex h-8 rounded overflow-hidden";
+
+  Object.entries(dataObj).forEach(([key,count],i)=>{
+    const percent=((count/total)*100).toFixed(1);
+    const colors=["#64748b","#c9a227","#334155","#475569"];
+    const div=document.createElement("div");
+    div.style.width=percent+"%";
+    div.style.background=colors[i%colors.length];
+    div.className="flex items-center justify-center text-white text-sm font-semibold";
+    div.innerHTML=`${key} (${count}, ${percent}%)`;
+    wrapper.appendChild(div);
+  });
+
+  container.appendChild(wrapper);
+}
+
 function renderCharts(books){
-  const genre={}, lang={}, country={};
+  const genre={},lang={},country={},gender={};
   books.forEach(b=>{
     genre[b.Genre]=(genre[b.Genre]||0)+1;
     if(b.Language) lang[b.Language]=(lang[b.Language]||0)+1;
     if(b.Country) country[b.Country]=(country[b.Country]||0)+1;
+    if(b.Gender) gender[b.Gender]=(gender[b.Gender]||0)+1;
   });
 
-  genreChartInstance = new Chart(document.getElementById("genreChart"),{
+  new Chart(document.getElementById("genreChart"),{
     type:"pie",
     data:{labels:Object.keys(genre),datasets:[{data:Object.values(genre)}]}
   });
 
-  languageChartInstance = new Chart(document.getElementById("languageChart"),{
+  new Chart(document.getElementById("languageChart"),{
     type:"pie",
     data:{labels:Object.keys(lang),datasets:[{data:Object.values(lang)}]}
   });
 
-  countryChartInstance = new Chart(document.getElementById("countryChart"),{
+  new Chart(document.getElementById("countryChart"),{
     type:"pie",
     data:{labels:Object.keys(country),datasets:[{data:Object.values(country)}]}
   });
+
+  renderHorizontalBar("fictionBar","Fiction vs Non-Fiction",{
+    Fiction:books.filter(b=>b.Fiction.toLowerCase().includes("fiction")).length,
+    "Non-Fiction":books.filter(b=>b.Fiction.toLowerCase().includes("non")).length
+  });
+
+  renderHorizontalBar("genderBarContainer","Author Gender",gender);
 }
 
 async function init(){
   const books=await fetchBooks();
-  renderCurrentlyReading(books);
   renderBooks(books);
+  renderProgress(books);
   renderCharts(books);
 }
 
 init();
 </script>
-
 </body>
 </html>
