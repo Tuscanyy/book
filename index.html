@@ -14,10 +14,9 @@
 <style>
 body { 
   font-family: Arial, sans-serif; 
-  background-color: #f0f4f8; /* softer gray */
+  background-color: #f0f4f8;
 }
 
-/* Apply medieval font to titles only */
 h1, .book-title, .chart-title {
   font-family: 'Metamorphous', serif;
 }
@@ -80,7 +79,7 @@ h1, .book-title, .chart-title {
   display: flex; 
   flex-direction: column; 
   justify-content: flex-start; 
-  background: #fefefe; /* lighter box */
+  background: #fefefe; 
   padding: 0.5rem; 
   border-radius: 0.25rem; 
   box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
@@ -128,10 +127,10 @@ h1, .book-title, .chart-title {
     </div>
   </div>
 
-  <!-- Bars: Fiction, Progress, Author Gender -->
+  <!-- Bars: Progress first, then Fiction vs Non-Fiction, then Author Gender -->
   <div class="space-y-4">
-    <div id="fictionBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
     <div id="readProgressBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
+    <div id="fictionBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
     <div id="genderBarContainer" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
   </div>
 
@@ -159,6 +158,7 @@ async function fetchBooks(){
         const text = await res.text();
         debugDiv.innerHTML = `<p>CSV fetch status: ${res.status}</p>`;
         const { data } = Papa.parse(text,{header:false,skipEmptyLines:true});
+        // keep order as in sheet
         const books = data.slice(5).map((row,index)=>({
             Book: row[0]||"",
             Author: row[1]||"",
@@ -216,10 +216,8 @@ function renderCurrentlyReading(books){
 function renderBooks(books){
     const bookList=document.getElementById("bookList");
     bookList.innerHTML="";
-    // sort finished books most recent first
-    const sorted = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").sort((a,b)=>{
-        return new Date(b["Date Finished"]) - new Date(a["Date Finished"]);
-    });
+    // flip order: last row in CSV first
+    const sorted = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").reverse();
     sorted.forEach(b=>{
         const stars = renderStars(b.Rating);
         const coverHTML = b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : "";
@@ -258,27 +256,40 @@ function renderStatsAndBars(books){
     const markerPercent = Math.min((expectedBooks/100)*100,100);
 
     document.getElementById("readProgressBar").innerHTML=`
-        <p class="text-lg font-semibold mb-1">Reading Progress</p>
+        <p class="text-lg font-semibold mb-2">Reading Progress</p>
         <div class="w-full bg-gray-300 h-6 relative">
             <div class="bg-green-500 h-6" style="width:${percent}%"></div>
             <div class="progress-marker" style="left:${markerPercent}%"></div>
             <div class="progress-text">${finishedBooks} / 100 (Expected: ${expectedBooks})</div>
         </div>
     `;
+}
 
-    const fictionCount = books.filter(b=>b.Fiction.toLowerCase().includes("fiction")).length;
-    const nonFictionCount = books.filter(b=>b.Fiction.toLowerCase().includes("non-fiction")).length;
-    const totalCount = fictionCount+nonFictionCount;
-    const fictionPercent = totalCount ? (fictionCount/totalCount*100):0;
-    const nonFictionPercent = totalCount ? (nonFictionCount/totalCount*100):0;
-    document.getElementById("fictionBar").innerHTML=`
-        <p class="text-lg font-semibold mb-1">Fiction vs Non-Fiction</p>
-        <div class="w-full bg-gray-300 h-6 flex relative">
-            <div class="bg-blue-500 h-6" style="width:${fictionPercent}%"></div>
-            <div class="bg-yellow-500 h-6" style="width:${nonFictionPercent}%"></div>
-            <div class="progress-text">Fiction: ${fictionCount}, Non-Fiction: ${nonFictionCount}</div>
-        </div>
-    `;
+// Generic horizontal bar renderer for Fiction/Non-Fiction and Author Gender
+function renderHorizontalBar(containerId, title, dataObj, colors){
+    const container = document.getElementById(containerId);
+    container.innerHTML = `<p class="text-lg font-semibold mb-2">${title}</p>`;
+
+    const total = Object.values(dataObj).reduce((a,b)=>a+b,0);
+    if(total === 0){
+        container.innerHTML += "<p>No data available</p>";
+        return;
+    }
+
+    const barWrapper = document.createElement("div");
+    barWrapper.className = "w-full bg-gray-300 h-8 rounded overflow-hidden flex relative";
+
+    let i = 0;
+    for(const [key,count] of Object.entries(dataObj)){
+        const percent = ((count/total)*100).toFixed(1);
+        const segment = document.createElement("div");
+        segment.className = `${colors[i % colors.length]} h-full flex items-center justify-center text-white text-sm font-semibold`;
+        segment.style.width = `${percent}%`;
+        segment.innerHTML = `${key} (${count}, ${percent}%)`;
+        barWrapper.appendChild(segment);
+        i++;
+    }
+    container.appendChild(barWrapper);
 }
 
 function renderPieChart(id, dataObj){
@@ -300,37 +311,6 @@ function renderPieChart(id, dataObj){
     if(id==="countryChart") countryChartInstance=chart;
 }
 
-// Updated Author Gender bar
-function renderGenderBar(dataObj){
-    const container = document.getElementById("genderBarContainer");
-    container.innerHTML = `<p class="text-lg font-semibold mb-2">Author Gender</p>`;
-
-    const total = Object.values(dataObj).reduce((a,b)=>a+b,0);
-    if(total === 0){
-        container.innerHTML += "<p>No data available</p>";
-        return;
-    }
-
-    const barWrapper = document.createElement("div");
-    barWrapper.className = "w-full bg-gray-300 h-8 rounded overflow-hidden flex relative";
-
-    let colors = ["bg-indigo-500","bg-teal-500","bg-orange-400","bg-purple-500","bg-gray-500","bg-green-500"];
-    let i = 0;
-    for(const [gender,count] of Object.entries(dataObj)){
-        const percent = ((count/total)*100).toFixed(1);
-
-        const segment = document.createElement("div");
-        segment.className = `${colors[i % colors.length]} h-full flex items-center justify-center text-white text-sm font-semibold`;
-        segment.style.width = `${percent}%`;
-        segment.innerHTML = `${gender} (${count} books, ${percent}%)`;
-
-        barWrapper.appendChild(segment);
-        i++;
-    }
-
-    container.appendChild(barWrapper);
-}
-
 function renderCharts(books){
     const genreCount={}, genderCount={}, langCount={}, countryCount={};
     books.forEach(b=>{
@@ -343,7 +323,9 @@ function renderCharts(books){
     renderPieChart("genreChart",genreCount);
     renderPieChart("languageChart",langCount);
     renderPieChart("countryChart",countryCount);
-    renderGenderBar(genderCount);
+    const barColors = ["bg-blue-500","bg-yellow-500","bg-indigo-500","bg-teal-500","bg-orange-400","bg-purple-500","bg-gray-500"];
+    renderHorizontalBar("fictionBar","Fiction vs Non-Fiction",{Fiction:books.filter(b=>b.Fiction.toLowerCase().includes("fiction")).length, "Non-Fiction":books.filter(b=>b.Fiction.toLowerCase().includes("non-fiction")).length},barColors);
+    renderHorizontalBar("genderBarContainer","Author Gender",genderCount,barColors);
 }
 
 async function init(){
