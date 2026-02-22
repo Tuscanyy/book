@@ -140,20 +140,23 @@ h1, .book-title, .chart-title {
   <!-- Currently Reading -->
   <div id="currentlyReading" class="p-4 rounded-lg shadow-lg overflow-auto max-h-[400px]" style="background: var(--bg-card);"></div>
 
-	<div class="flex justify-between items-start mb-6">
-	<!-- Intro description -->
-	<div class="description-box flex-1">
-		<p>In 2026 I decided I would read at least 100 books. I decided to track them in a spreadsheet and then eventually I made this to show my progress and relevant stats in a nicer form.</p>
-	</div>
-
-	<!-- LinkedIn button -->
+  <!-- Right Side: Description + Stats -->
+  <div class="space-y-4">
+    <div class="description-box">
+      <p>In 2026 I decided I would read at least 100 books and made a spreadsheet to track my progress and other statistics. I then used the spreadsheet to build this website that displays all the important data. -Daniel Moore</p>
+    </div>
+	
 	<div class="ml-4">
 		<a href="https://www.linkedin.com/in/daniel-moore-485b92120/" target="_blank" 
 		class="inline-block bg-blue-600 text-white font-semibold px-4 py-2 rounded shadow hover:bg-blue-700 transition">
 		Connect on LinkedIn
 		</a>
 	</div>
-	</div>
+    <div id="stats" class="p-4 rounded-lg shadow-lg text-center" style="background: var(--bg-card);"></div>
+  </div>
+  
+  
+
   <!-- Pie Charts -->
   <div class="p-4 rounded-lg shadow-lg flex justify-around flex-wrap" style="background: var(--bg-card);">
     <div class="text-center">
