@@ -104,26 +104,27 @@ h1, .book-title, .chart-title {
     <div id="stats" class="bg-white p-4 rounded-lg shadow-lg text-center"></div>
   </div>
 
-  <!-- Pie Charts + Gender Bar -->
+  <!-- Pie Charts -->
   <div class="bg-white p-4 rounded-lg shadow-lg flex justify-around flex-wrap">
     <div class="text-center">
       <div class="chart-title">Genre</div>
       <div class="chart-container"><canvas id="genreChart"></canvas></div>
     </div>
-    <div class="text-center w-full mt-2">
-      <div class="chart-title">Gender</div>
-      <div id="genderBar" class="w-full mt-2"></div>
-    </div>
     <div class="text-center">
       <div class="chart-title">Language</div>
       <div class="chart-container"><canvas id="languageChart"></canvas></div>
     </div>
+    <div class="text-center">
+      <div class="chart-title">Country</div>
+      <div class="chart-container"><canvas id="countryChart"></canvas></div>
+    </div>
   </div>
 
-  <!-- Bars -->
+  <!-- Bars: Fiction, Progress, Gender -->
   <div class="space-y-4">
     <div id="fictionBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
     <div id="readProgressBar" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
+    <div id="genderBarContainer" class="bg-white p-4 rounded-lg shadow-lg relative"></div>
   </div>
 
 </div>
@@ -141,7 +142,7 @@ h1, .book-title, .chart-title {
 
 <script>
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
-let genreChartInstance=null, languageChartInstance=null;
+let genreChartInstance=null, languageChartInstance=null, countryChartInstance=null;
 
 async function fetchBooks(){
     const debugDiv = document.getElementById("debug");
@@ -160,6 +161,7 @@ async function fetchBooks(){
             Gender: row[7]||"",
             Language: row[8]||"",
             Genre: row[9]?.trim() || "Other",
+            Country: row[11]||"",
             Cover: row[10]||"",
             _rowIndex:index+6
         }));
@@ -180,7 +182,6 @@ function renderStars(rating){
     return '★'.repeat(fullStars) + (halfStar?'⯨':'') + '☆'.repeat(emptyStars);
 }
 
-// Currently Reading
 function renderCurrentlyReading(books){
     const div = document.getElementById("currentlyReading");
     div.innerHTML = `<p class="text-lg font-semibold mb-2">📖 Currently Reading</p>`; 
@@ -204,7 +205,6 @@ function renderCurrentlyReading(books){
     });
 }
 
-// Book list
 function renderBooks(books){
     const bookList=document.getElementById("bookList");
     bookList.innerHTML="";
@@ -228,7 +228,6 @@ function renderBooks(books){
     });
 }
 
-// Stats and bars
 function renderStatsAndBars(books){
     const finishedBooks = books.filter(b=>b.Read && b.Read.toLowerCase()==="finished").length;
     const remaining = Math.max(100-finishedBooks,0);
@@ -270,13 +269,14 @@ function renderStatsAndBars(books){
     `;
 }
 
-// Pie charts
+// Pie chart renderer
 function renderPieChart(id, dataObj){
     const labels = Object.keys(dataObj);
     const data = Object.values(dataObj);
     const ctx = document.getElementById(id);
     if(id==="genreChart" && genreChartInstance) genreChartInstance.destroy();
     if(id==="languageChart" && languageChartInstance) languageChartInstance.destroy();
+    if(id==="countryChart" && countryChartInstance) countryChartInstance.destroy();
     const chart = new Chart(ctx,{
         type:'pie',
         data:{labels,data,datasets:[{data,backgroundColor:["#f87171","#60a5fa","#34d399","#facc15","#a78bfa","#fb7185","#fbbf24","#38bdf8","#a3e635","#c084fc"]}]},
@@ -286,11 +286,12 @@ function renderPieChart(id, dataObj){
     });
     if(id==="genreChart") genreChartInstance=chart;
     if(id==="languageChart") languageChartInstance=chart;
+    if(id==="countryChart") countryChartInstance=chart;
 }
 
-// Gender horizontal bar
+// Gender horizontal bar (moved to right section)
 function renderGenderBar(dataObj){
-    const container = document.getElementById("genderBar");
+    const container = document.getElementById("genderBarContainer");
     container.innerHTML = "";
 
     const total = Object.values(dataObj).reduce((a,b)=>a+b,0);
@@ -299,17 +300,16 @@ function renderGenderBar(dataObj){
         return;
     }
 
-    // Create wrapper bar
     const barWrapper = document.createElement("div");
     barWrapper.className = "w-full bg-gray-300 h-8 rounded overflow-hidden flex relative";
 
     let colors = [
-        "bg-blue-500",
-        "bg-pink-400",
-        "bg-green-500",
+        "bg-indigo-500",
+        "bg-teal-500",
+        "bg-orange-400",
         "bg-purple-500",
-        "bg-yellow-400",
-        "bg-red-400"
+        "bg-gray-500",
+        "bg-green-500"
     ];
 
     let i = 0;
@@ -327,7 +327,6 @@ function renderGenderBar(dataObj){
 
     container.appendChild(barWrapper);
 
-    // Add legend with counts
     const legend = document.createElement("div");
     legend.className = "mt-2 text-sm";
 
@@ -340,16 +339,18 @@ function renderGenderBar(dataObj){
 }
 
 function renderCharts(books){
-    const genreCount={}, genderCount={}, langCount={};
+    const genreCount={}, genderCount={}, langCount={}, countryCount={};
     books.forEach(b=>{
         const g = b.Genre.trim() || "Other";
         genreCount[g]=(genreCount[g]||0)+1;
         if(b.Gender) genderCount[b.Gender]=(genderCount[b.Gender]||0)+1;
         if(b.Language) langCount[b.Language]=(langCount[b.Language]||0)+1;
+        if(b.Country) countryCount[b.Country]=(countryCount[b.Country]||0)+1;
     });
     renderPieChart("genreChart",genreCount);
-    renderGenderBar(genderCount);
     renderPieChart("languageChart",langCount);
+    renderPieChart("countryChart",countryCount);
+    renderGenderBar(genderCount);
 }
 
 async function init(){
