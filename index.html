@@ -149,9 +149,8 @@ h1, .book-title, .chart-title {
 <div id="bookList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
 <script>
-const CSV_URL = "YOUR_CSV_LINK_HERE";
 
-let genreChartInstance=null, languageChartInstance=null, countryChartInstance=null;
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
 
 async function fetchBooks(){
   const res = await fetch(CSV_URL);
@@ -220,65 +219,10 @@ function renderProgress(books){
   `;
 }
 
-function renderHorizontalBar(id,title,dataObj){
-  const total=Object.values(dataObj).reduce((a,b)=>a+b,0);
-  const container=document.getElementById(id);
-  container.innerHTML=`<p class="text-lg font-semibold mb-3">${title}</p>`;
-
-  const wrapper=document.createElement("div");
-  wrapper.className="flex h-8 rounded overflow-hidden";
-
-  Object.entries(dataObj).forEach(([key,count],i)=>{
-    const percent=((count/total)*100).toFixed(1);
-    const colors=["#64748b","#c9a227","#334155","#475569"];
-    const div=document.createElement("div");
-    div.style.width=percent+"%";
-    div.style.background=colors[i%colors.length];
-    div.className="flex items-center justify-center text-white text-sm font-semibold";
-    div.innerHTML=`${key} (${count}, ${percent}%)`;
-    wrapper.appendChild(div);
-  });
-
-  container.appendChild(wrapper);
-}
-
-function renderCharts(books){
-  const genre={},lang={},country={},gender={};
-  books.forEach(b=>{
-    genre[b.Genre]=(genre[b.Genre]||0)+1;
-    if(b.Language) lang[b.Language]=(lang[b.Language]||0)+1;
-    if(b.Country) country[b.Country]=(country[b.Country]||0)+1;
-    if(b.Gender) gender[b.Gender]=(gender[b.Gender]||0)+1;
-  });
-
-  new Chart(document.getElementById("genreChart"),{
-    type:"pie",
-    data:{labels:Object.keys(genre),datasets:[{data:Object.values(genre)}]}
-  });
-
-  new Chart(document.getElementById("languageChart"),{
-    type:"pie",
-    data:{labels:Object.keys(lang),datasets:[{data:Object.values(lang)}]}
-  });
-
-  new Chart(document.getElementById("countryChart"),{
-    type:"pie",
-    data:{labels:Object.keys(country),datasets:[{data:Object.values(country)}]}
-  });
-
-  renderHorizontalBar("fictionBar","Fiction vs Non-Fiction",{
-    Fiction:books.filter(b=>b.Fiction.toLowerCase().includes("fiction")).length,
-    "Non-Fiction":books.filter(b=>b.Fiction.toLowerCase().includes("non")).length
-  });
-
-  renderHorizontalBar("genderBarContainer","Author Gender",gender);
-}
-
 async function init(){
   const books=await fetchBooks();
   renderBooks(books);
   renderProgress(books);
-  renderCharts(books);
 }
 
 init();
