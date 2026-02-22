@@ -104,15 +104,15 @@ h1, .book-title, .chart-title {
     <div id="stats" class="bg-white p-4 rounded-lg shadow-lg text-center"></div>
   </div>
 
-  <!-- Pie Charts -->
+  <!-- Pie Charts + Gender Bar -->
   <div class="bg-white p-4 rounded-lg shadow-lg flex justify-around flex-wrap">
     <div class="text-center">
       <div class="chart-title">Genre</div>
       <div class="chart-container"><canvas id="genreChart"></canvas></div>
     </div>
-    <div class="text-center">
+    <div class="text-center w-full mt-2">
       <div class="chart-title">Gender</div>
-      <div class="chart-container"><canvas id="genderChart"></canvas></div>
+      <div id="genderBar" class="w-full mt-2"></div>
     </div>
     <div class="text-center">
       <div class="chart-title">Language</div>
@@ -141,7 +141,7 @@ h1, .book-title, .chart-title {
 
 <script>
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
-let genreChartInstance=null, genderChartInstance=null, languageChartInstance=null;
+let genreChartInstance=null, languageChartInstance=null;
 
 async function fetchBooks(){
     const debugDiv = document.getElementById("debug");
@@ -276,7 +276,6 @@ function renderPieChart(id, dataObj){
     const data = Object.values(dataObj);
     const ctx = document.getElementById(id);
     if(id==="genreChart" && genreChartInstance) genreChartInstance.destroy();
-    if(id==="genderChart" && genderChartInstance) genderChartInstance.destroy();
     if(id==="languageChart" && languageChartInstance) languageChartInstance.destroy();
     const chart = new Chart(ctx,{
         type:'pie',
@@ -286,8 +285,58 @@ function renderPieChart(id, dataObj){
         }
     });
     if(id==="genreChart") genreChartInstance=chart;
-    if(id==="genderChart") genderChartInstance=chart;
     if(id==="languageChart") languageChartInstance=chart;
+}
+
+// Gender horizontal bar
+function renderGenderBar(dataObj){
+    const container = document.getElementById("genderBar");
+    container.innerHTML = "";
+
+    const total = Object.values(dataObj).reduce((a,b)=>a+b,0);
+    if(total === 0){
+        container.innerHTML = "<p>No data available</p>";
+        return;
+    }
+
+    // Create wrapper bar
+    const barWrapper = document.createElement("div");
+    barWrapper.className = "w-full bg-gray-300 h-8 rounded overflow-hidden flex relative";
+
+    let colors = [
+        "bg-blue-500",
+        "bg-pink-400",
+        "bg-green-500",
+        "bg-purple-500",
+        "bg-yellow-400",
+        "bg-red-400"
+    ];
+
+    let i = 0;
+    for(const [gender,count] of Object.entries(dataObj)){
+        const percent = ((count/total)*100).toFixed(1);
+
+        const segment = document.createElement("div");
+        segment.className = `${colors[i % colors.length]} h-full flex items-center justify-center text-white text-sm font-semibold`;
+        segment.style.width = `${percent}%`;
+        segment.innerHTML = `${gender} (${percent}%)`;
+
+        barWrapper.appendChild(segment);
+        i++;
+    }
+
+    container.appendChild(barWrapper);
+
+    // Add legend with counts
+    const legend = document.createElement("div");
+    legend.className = "mt-2 text-sm";
+
+    for(const [gender,count] of Object.entries(dataObj)){
+        const percent = ((count/total)*100).toFixed(1);
+        legend.innerHTML += `<div>${gender}: ${count} books (${percent}%)</div>`;
+    }
+
+    container.appendChild(legend);
 }
 
 function renderCharts(books){
@@ -299,7 +348,7 @@ function renderCharts(books){
         if(b.Language) langCount[b.Language]=(langCount[b.Language]||0)+1;
     });
     renderPieChart("genreChart",genreCount);
-    renderPieChart("genderChart",genderCount);
+    renderGenderBar(genderCount);
     renderPieChart("languageChart",langCount);
 }
 
