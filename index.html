@@ -230,7 +230,6 @@ function renderBooks(books){
 
         const infoHTML = `
             <div class="book-info">
-                <p class="book-title">${b.Book}</p>
                 <div style="height:4px; width:100%; background:${barColor}; border-radius:2px; margin-bottom:0.5rem;"></div>
                 <p><strong>Author:</strong> ${b.Author}</p>
                 <p><strong>Genre:</strong> ${b.Genre || b.Fiction}</p>
@@ -243,6 +242,7 @@ function renderBooks(books){
 
         bookList.innerHTML += `
             <div class="book-item">
+                <p class="book-title">${b.Book}</p>
                 <div class="book-content">
                     ${coverHTML}
                     ${infoHTML}
