@@ -12,9 +12,33 @@
 <link href="https://fonts.googleapis.com/css2?family=Metamorphous&display=swap" rel="stylesheet">
 
 <style>
+:root {
+  /* ===== BACKGROUND ===== */
+  --bg-page: #f0f4f8;
+  --bg-card: #ffffff;
+  --bg-soft: #fefefe;
+
+  /* ===== TEXT ===== */
+  --text-main: #1f2937;
+  --text-muted: #4b5563;
+
+  /* ===== ACCENTS ===== */
+  --accent-primary: #3b82f6;
+  --accent-secondary: #f59e0b;
+  --accent-progress: #22c55e;
+
+  /* ===== CHART COLOURS ===== */
+  --chart-1: #60a5fa;
+  --chart-2: #f87171;
+  --chart-3: #34d399;
+  --chart-4: #facc15;
+  --chart-5: #a78bfa;
+  --chart-6: #fb7185;
+}
 body { 
   font-family: Arial, sans-serif; 
-  background-color: #f0f4f8;
+  background-color: var(--bg-page);
+	color: var(--text-main);
 }
 
 h1, .book-title, .chart-title {
@@ -47,7 +71,7 @@ h1, .book-title, .chart-title {
 .chart-title { text-align:center; font-weight:bold; margin-bottom:0.25rem; }
 
 .book-item { 
-  background: #ffffff; 
+  background: var(--bg-card);
   padding:1rem; 
   border-radius:0.5rem; 
   transition: transform 0.2s, box-shadow 0.2s; 
@@ -79,14 +103,14 @@ h1, .book-title, .chart-title {
   display: flex; 
   flex-direction: column; 
   justify-content: flex-start; 
-  background: #fefefe; 
+  background: var(--bg-soft);
   padding: 0.5rem; 
   border-radius: 0.25rem; 
   box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
 }
 
 .description-box { 
-  background:#ffffff; 
+  background: var(--bg-card); 
   padding:1rem; 
   border-radius:0.5rem; 
   box-shadow: 0 1px 4px rgba(0,0,0,0.05); 
@@ -223,8 +247,10 @@ function renderBooks(books){
         const stars = renderStars(b.Rating);
 
         // Decide color for the bar based on Fiction/Non-Fiction
-        let barColor = "#3b82f6"; // blue for Fiction
-        if(b.Fiction.toLowerCase().includes("non-fiction")) barColor = "#f59e0b"; // orange for Non-Fiction
+        let barColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary');
+		if(b.Fiction.toLowerCase().includes("non-fiction")) {
+			barColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-secondary');
+		}
 
         const coverHTML = b.Cover ? `<img class="book-cover" src="${b.Cover}" alt="cover">` : "";
 
@@ -272,7 +298,7 @@ function renderStatsAndBars(books){
     document.getElementById("readProgressBar").innerHTML=`
         <p class="text-lg font-semibold mb-2">Reading Progress</p>
         <div class="w-full bg-gray-300 h-6 relative">
-            <div class="bg-green-500 h-6" style="width:${percent}%"></div>
+            <div style="background: var(--accent-progress); width:${percent}%; height:100%;"></div>
             <div class="progress-marker" style="left:${markerPercent}%"></div>
             <div class="progress-text">${finishedBooks} / 100 (Expected: ${expectedBooks})</div>
         </div>
@@ -310,16 +336,47 @@ function renderPieChart(id, dataObj){
     const labels = Object.keys(dataObj);
     const data = Object.values(dataObj);
     const ctx = document.getElementById(id);
+
     if(id==="genreChart" && genreChartInstance) genreChartInstance.destroy();
     if(id==="languageChart" && languageChartInstance) languageChartInstance.destroy();
     if(id==="countryChart" && countryChartInstance) countryChartInstance.destroy();
+
+    // Get theme colours from CSS variables
+    const rootStyles = getComputedStyle(document.documentElement);
+    const themeColors = [
+        rootStyles.getPropertyValue('--chart-1').trim(),
+        rootStyles.getPropertyValue('--chart-2').trim(),
+        rootStyles.getPropertyValue('--chart-3').trim(),
+        rootStyles.getPropertyValue('--chart-4').trim(),
+        rootStyles.getPropertyValue('--chart-5').trim(),
+        rootStyles.getPropertyValue('--chart-6').trim()
+    ];
+
     const chart = new Chart(ctx,{
         type:'pie',
-        data:{labels,data,datasets:[{data,backgroundColor:["#f87171","#60a5fa","#34d399","#facc15","#a78bfa","#fb7185","#fbbf24","#38bdf8","#a3e635","#c084fc"]}]},
-        options:{responsive:true, maintainAspectRatio:false, aspectRatio:1,
-            plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:8}}}
+        data:{
+            labels: labels,
+            datasets:[{
+                data: data,
+                backgroundColor: themeColors
+            }]
+        },
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            aspectRatio:1,
+            plugins:{
+                legend:{
+                    position:'bottom',
+                    labels:{
+                        boxWidth:12,
+                        padding:8
+                    }
+                }
+            }
         }
     });
+
     if(id==="genreChart") genreChartInstance=chart;
     if(id==="languageChart") languageChartInstance=chart;
     if(id==="countryChart") countryChartInstance=chart;
