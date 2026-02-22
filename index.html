@@ -12,20 +12,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Metamorphous&display=swap" rel="stylesheet">
 
 <style>
+<style>
 :root {
   /* ===== BACKGROUND ===== */
-  --bg-page: linear-gradient(to bottom, #FDF6E3, #FBE9B7); /* parchment gradient from top to bottom */
+  --bg-page: linear-gradient(to bottom, #FDF6E3, #FBE9B7); /* parchment gradient top to bottom */
   --bg-card: linear-gradient(to bottom, #F9EBC6, #F5DFA3); /* slightly darker parchment for cards */
   --bg-soft: #FFF8E0; /* light panel interiors, soft cream */
 
   /* ===== TEXT ===== */
-  --text-main: #2B1B0E;     /* dark ink brown for main text */
-  --text-muted: #6B5842;    /* muted brown for secondary text */
+  --text-main: #2B1B0E;     /* dark ink brown */
+  --text-muted: #6B5842;    /* muted brown */
 
   /* ===== ACCENTS ===== */
   --accent-primary: #8B0000;  /* deep red, like illuminated initials */
   --accent-secondary: #005F73; /* dark teal ink for highlights */
-  --accent-progress: #D4AF37;  /* gold for progress bar and emphasis */
+  --accent-progress: #D4AF37;  /* gold for progress bar */
 
   /* ===== CHART COLORS ===== */
   --chart-1: #8B0000;  /* deep red */
@@ -39,18 +40,28 @@
   --chart-9: #556B2F;  /* olive green */
   --chart-10: #F5DEB3; /* wheat */
 }
-body { 
-  font-family: Arial, sans-serif; 
+
+/* ===== PAGE BASE ===== */
+body {
+  font-family: 'Metamorphous', serif;
   background-color: var(--bg-page);
-	color: var(--text-main);
+  background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png'); /* subtle parchment texture */
+  background-repeat: repeat;
+  color: var(--text-main);
 }
 
+/* ===== HEADINGS & TITLES ===== */
 h1, .book-title, .chart-title {
   font-family: 'Metamorphous', serif;
 }
 
-.star { color: gold; font-size: 1.2em; }
+/* ===== STAR RATING ===== */
+.star { 
+  color: gold; 
+  font-size: 1.2em; 
+}
 
+/* ===== PROGRESS BAR ===== */
 .progress-marker { 
   position: absolute; 
   width: 2px; 
@@ -70,12 +81,24 @@ h1, .book-title, .chart-title {
   line-height:1.5rem; 
 }
 
-.chart-container { width: 10rem; height: 10rem; position: relative; }
+/* ===== CHART CONTAINERS ===== */
+.chart-container { 
+  width: 10rem; 
+  height: 10rem; 
+  position: relative; 
+}
 
-.chart-title { text-align:center; font-weight:bold; margin-bottom:0.25rem; }
+.chart-title { 
+  text-align:center; 
+  font-weight:bold; 
+  margin-bottom:0.25rem; 
+}
 
-.book-item { 
+/* ===== BOOK ITEMS / CARDS ===== */
+.book-item, .description-box, #stats, #readProgressBar, #fictionBar, #genderBarContainer, .chart-container {
   background: var(--bg-card);
+  background-image: url('https://www.transparenttextures.com/patterns/linen.png'); /* subtle linen texture */
+  background-blend-mode: multiply;
   padding:1rem; 
   border-radius:0.5rem; 
   transition: transform 0.2s, box-shadow 0.2s; 
@@ -87,6 +110,7 @@ h1, .book-title, .chart-title {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
 }
 
+/* ===== BOOK TITLES ===== */
 .book-title { 
   font-weight: 700; 
   font-size: 1.25rem; 
@@ -94,6 +118,7 @@ h1, .book-title, .chart-title {
   text-align: left; 
 }
 
+/* ===== BOOK CONTENT & COVER ===== */
 .book-content { display:flex; gap:1rem; align-items:flex-start; }
 
 .book-cover { 
@@ -103,23 +128,34 @@ h1, .book-title, .chart-title {
   border-radius:0.25rem; 
 }
 
+/* ===== BOOK INFO PANEL ===== */
 .book-info { 
   display: flex; 
   flex-direction: column; 
   justify-content: flex-start; 
-  background: rgba(255, 248, 231, 0); 
+  background: rgba(255, 248, 224, 0.6); /* semi-transparent parchment effect */
+  background-image: url('https://www.transparenttextures.com/patterns/subtle-paper.png'); /* subtle inner texture */
+  background-blend-mode: overlay;
   padding: 0.5rem; 
   border-radius: 0.25rem; 
   box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+  border: 1px solid rgba(43,27,14,0.2); /* subtle old-paper border */
 }
 
+/* ===== DESCRIPTION BOX ===== */
 .description-box { 
   background: var(--bg-card); 
+  background-image: url('https://www.transparenttextures.com/patterns/linen.png');
+  background-blend-mode: multiply;
   padding:1rem; 
   border-radius:0.5rem; 
   box-shadow: 0 1px 4px rgba(0,0,0,0.05); 
   margin-bottom:1rem; 
 }
+
+/* ===== LINKS ===== */
+a { color: var(--accent-primary); text-decoration: underline; }
+</style>
 </style>
 </head>
 <body class="p-6">
