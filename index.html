@@ -266,8 +266,28 @@
   .book-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding: 0.6rem 1rem; background: rgba(0,0,0,0.15); }
   .stars { color: #f5c842; font-size: 0.9rem; letter-spacing: 0.05em; }
   .book-date { font-size: 0.7rem; color: var(--text-dim); }
-  /* page count in book card */
+  /* page count and publish year in book card */
   .book-pages { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.25rem; }
+  .book-pub-year { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.2rem; }
+
+  /* ── BOOK CLUB STICKER ── */
+  .book-club-sticker {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    background: linear-gradient(135deg, #f5c842, #f0924a);
+    color: #0d0d0f;
+    font-size: 0.5rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.22rem 0.45rem;
+    border-radius: 0.25rem;
+    line-height: 1.2;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    z-index: 2;
+  }
 
   .currently-reading-badge { position: absolute; top: 0.5rem; left: 0.5rem; background: var(--gold); color: #0d0d0f; font-size: 0.55rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.2rem 0.4rem; border-radius: 0.25rem; }
 
@@ -352,7 +372,7 @@
         <div class="chart-wrap"><canvas id="genreChart"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-card-title">🌍 Language</div>
+        <div class="chart-card-title">🌍 Original Language</div>
         <div class="chart-wrap"><canvas id="languageChart"></canvas></div>
       </div>
       <!-- Monthly chart with books/pages toggle -->
@@ -441,12 +461,14 @@ async function fetchBooks() {
     Read: row[3] || '',
     DateFinished: row[4] || '',
     Rating: row[5] || '',
+    BookClub: (row[6] || '').trim(),   // ← Column G (index 6)
     Gender: row[7] || '',
     Language: row[8] || '',
     Genre: (row[9] || '').trim() || 'Other',
     Cover: row[10] || '',
     Country: row[11] || '',
-    Pages: parseInt(row[12]) || 0,   // ← Column M (index 12)
+    Pages: parseInt(row[12]) || 0,     // ← Column M (index 12)
+    DatePublished: row[13] || '',      // ← Column N (index 13)
     _idx: i
   }));
 }
@@ -627,11 +649,22 @@ function bookCardHTML(b, isCurrent = false) {
   const fictionTag = b.Fiction.toLowerCase().includes('non-fiction')
     ? `<span class="tag tag-nonfiction">Non-Fiction</span>`
     : b.Fiction ? `<span class="tag tag-fiction">Fiction</span>` : '';
+
+  const isBookClub = b.BookClub.toLowerCase() === 'book club';
+  const bookClubSticker = isBookClub
+    ? `<span class="book-club-sticker">📖 Book Club</span>`
+    : '';
+
   const coverHTML = b.Cover
     ? `<img src="${b.Cover}" alt="cover" loading="lazy" onload="this.classList.add('loaded')">`
     : `<div class="book-cover-placeholder">📖</div>`;
+
   const pagesHTML = b.Pages
     ? `<div class="book-pages">📄 ${b.Pages.toLocaleString()} pages</div>`
+    : '';
+
+  const pubYearHTML = b.DatePublished
+    ? `<div class="book-pub-year">🗓 Published ${b.DatePublished}</div>`
     : '';
 
   return `
@@ -640,6 +673,7 @@ function bookCardHTML(b, isCurrent = false) {
         <div class="book-cover-wrap" style="min-height:140px">
           ${isCurrent ? '<span class="currently-reading-badge">Reading</span>' : ''}
           ${coverHTML}
+          ${bookClubSticker}
         </div>
         <div class="book-body">
           <div class="book-title-text">${b.Book || 'Untitled'}</div>
@@ -651,6 +685,7 @@ function bookCardHTML(b, isCurrent = false) {
           </div>
           ${b.Country ? `<div style="font-size:0.72rem;color:var(--text-dim)">📍 ${b.Country}</div>` : ''}
           ${pagesHTML}
+          ${pubYearHTML}
         </div>
       </div>
       <div class="book-footer">
