@@ -394,6 +394,12 @@
       <div class="chart-card" id="countryBar"></div>
     </div>
 
+    <!-- Publication year chart — full width -->
+    <div class="chart-card" style="margin-bottom:2rem;">
+      <div class="chart-card-title">📅 Books by Publication Year</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="pubYearChart"></canvas></div>
+    </div>
+
     <hr>
     <div id="currentlySection"></div>
     <h2 class="section-title">Finished Books</h2>
@@ -412,6 +418,8 @@
         <option value="title">Title A–Z</option>
         <option value="pages-high">Pages: Most First</option>
         <option value="pages-low">Pages: Fewest First</option>
+        <option value="pub-oldest">Published: Oldest First</option>
+        <option value="pub-newest">Published: Newest First</option>
       </select>
       <div class="filter-chip active" data-filter="all" onclick="setFictionFilter(this)">All</div>
       <div class="filter-chip" data-filter="Fiction" onclick="setFictionFilter(this)">Fiction</div>
@@ -435,6 +443,13 @@ let finishedBooks = [];
 let fictionFilterVal = 'all';
 let chartInstances = {};
 let monthlyMode = 'books'; // 'books' or 'pages'
+
+// ── EXTRACT YEAR from pub date string ──
+function extractYear(str) {
+  if (!str) return null;
+  const m = str.match(/\b(\d{4})\b/);
+  return m ? parseInt(m[1]) : null;
+}
 
 // ── THEME ──
 function toggleTheme() {
@@ -488,12 +503,22 @@ function renderStats(finished) {
   const uniqueAuthors = new Set(finished.map(b => b.Author)).size;
   const totalPages = finished.reduce((s, b) => s + (b.Pages || 0), 0);
 
+  // Longest book
+  const withPages = finished.filter(b => b.Pages > 0);
+  const longestBook = withPages.length ? withPages.reduce((a, b) => b.Pages > a.Pages ? b : a) : null;
+
+  // Oldest published book (extract year from DatePublished, handles plain years or date strings)
+  const withYear = finished.filter(b => extractYear(b.DatePublished) !== null);
+  const oldestBook = withYear.length ? withYear.reduce((a, b) => extractYear(b.DatePublished) < extractYear(a.DatePublished) ? b : a) : null;
+
   const stats = [
     { label: 'Books Finished', value: finished.length, sub: `of ${GOAL} goal`, accent: '#38bdc4' },
     { label: 'Pages Read',     value: totalPages > 0 ? totalPages.toLocaleString() : '-', sub: 'total pages', accent: '#9b72e8' },
     { label: 'Avg Rating',     value: avgRating === '-' ? '-' : avgRating + '★', sub: `from ${rated.length} ratings`, accent: '#f0924a' },
     { label: 'Authors Read',   value: uniqueAuthors, sub: 'unique authors', accent: '#6ba3f5' },
     { label: 'Genres Explored',value: new Set(finished.map(b => b.Genre)).size, sub: 'different genres', accent: '#4dcb8a' },
+    { label: 'Longest Book',   value: longestBook ? longestBook.Pages.toLocaleString() : '-', sub: longestBook ? longestBook.Book.slice(0, 22) + (longestBook.Book.length > 22 ? '…' : '') : 'no page data', accent: '#f06292' },
+    { label: 'Oldest Book',    value: oldestBook ? extractYear(oldestBook.DatePublished) : '-', sub: oldestBook ? oldestBook.Book.slice(0, 22) + (oldestBook.Book.length > 22 ? '…' : '') : 'no pub date', accent: '#aed581' },
   ];
 
   document.getElementById('statGrid').innerHTML = stats.map(s => `
@@ -616,6 +641,47 @@ function renderMonthlyChart(finished) {
   });
 }
 
+// ── PUBLICATION YEAR CHART ──
+function renderPubYearChart(finished) {
+  const yearCount = {};
+  finished.forEach(b => {
+    const y = extractYear(b.DatePublished);
+    if (y) yearCount[y] = (yearCount[y] || 0) + 1;
+  });
+  if (!Object.keys(yearCount).length) return;
+
+  const years = Object.keys(yearCount).map(Number).sort((a, b) => a - b);
+  const counts = years.map(y => yearCount[y]);
+
+  if (chartInstances['pubYear']) chartInstances['pubYear'].destroy();
+  const ctx = document.getElementById('pubYearChart');
+  chartInstances['pubYear'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: years,
+      datasets: [{
+        label: 'Books',
+        data: counts,
+        backgroundColor: counts.map(() => '#38bdc4'),
+        hoverBackgroundColor: counts.map(() => '#4dd0d7'),
+        borderRadius: 4,
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.parsed.y + ' book' + (ctx.parsed.y !== 1 ? 's' : '') } }
+      },
+      scales: {
+        x: { ticks: { color: '#7a8499', font: { size: 10 }, maxRotation: 45 }, grid: { display: false } },
+        y: { ticks: { color: '#7a8499', font: { size: 10 }, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
 // ── SEGMENT BAR ──
 function renderSegBar(containerId, title, dataObj) {
   const container = document.getElementById(containerId);
@@ -664,7 +730,7 @@ function bookCardHTML(b, isCurrent = false) {
     : '';
 
   const pubYearHTML = b.DatePublished
-    ? `<div class="book-pub-year">🗓 Published ${b.DatePublished}</div>`
+    ? `<div class="book-pub-year">📅 Published ${b.DatePublished}</div>`
     : '';
 
   return `
@@ -729,6 +795,8 @@ function renderBookGrid() {
   else if (sort === 'title')       books = books.slice().sort((a, b) => a.Book.localeCompare(b.Book));
   else if (sort === 'pages-high')  books = books.slice().sort((a, b) => (b.Pages||0) - (a.Pages||0));
   else if (sort === 'pages-low')   books = books.slice().sort((a, b) => (a.Pages||0) - (b.Pages||0));
+  else if (sort === 'pub-oldest')  books = books.slice().sort((a, b) => (extractYear(a.DatePublished)||9999) - (extractYear(b.DatePublished)||9999));
+  else if (sort === 'pub-newest')  books = books.slice().sort((a, b) => (extractYear(b.DatePublished)||0) - (extractYear(a.DatePublished)||0));
 
   document.getElementById('resultsCount').textContent = `${books.length} book${books.length !== 1 ? 's' : ''}`;
   const grid = document.getElementById('bookGrid');
@@ -770,6 +838,7 @@ async function init() {
     renderSegBar('fictionBar', '📖 Fiction vs Non-Fiction', fictionCount);
     renderSegBar('genderBar', '✍️ Author Gender', genderCount);
     renderSegBar('countryBar', '🗺️ Country of Origin', countryCount);
+    renderPubYearChart(finishedBooks);
 
     const sel = document.getElementById('genreFilter');
     Object.keys(genreCount).sort().forEach(g => {
