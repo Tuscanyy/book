@@ -893,8 +893,8 @@ function bookCardHTML(b, isCurrent = false) {
 
   // Only show a translator credit for books not originally published in English
   const isTranslated = b.Translator && b.Language && b.Language.toLowerCase() !== 'english';
-  const translatorHTML = isTranslated
-    ? `<div class="book-translator">🌐 Translated by ${b.Translator}</div>`
+  const translatorSuffix = isTranslated
+    ? ` <span style="color:var(--text-dim);font-weight:400;">(tr. ${b.Translator})</span>`
     : '';
 
   return `
@@ -907,7 +907,7 @@ function bookCardHTML(b, isCurrent = false) {
         </div>
         <div class="book-body">
           <div class="book-title-text">${b.Book || 'Untitled'}</div>
-          <div class="book-author">${b.Author || 'Unknown'}</div>
+          <div class="book-author">${b.Author || 'Unknown'}${translatorSuffix}</div>
           <div class="book-meta">
             ${fictionTag}
             ${b.Genre ? `<span class="tag tag-genre">${b.Genre}</span>` : ''}
@@ -916,7 +916,6 @@ function bookCardHTML(b, isCurrent = false) {
           ${b.Country ? `<div style="font-size:0.72rem;color:var(--text-dim)">📍 ${b.Country}</div>` : ''}
           ${pagesHTML}
           ${pubYearHTML}
-          ${translatorHTML}
         </div>
       </div>
       <div class="book-footer">
