@@ -230,6 +230,23 @@
   .seg-legend-item { display: flex; align-items: center; gap: 0.35rem; }
   .seg-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 
+  /* ── WORLD MAP ── */
+  .map-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    color: var(--text);
+    transition: opacity 0.1s;
+    z-index: 10;
+    white-space: nowrap;
+    opacity: 0;
+  }
+  #countryMap svg path { cursor: pointer; transition: fill 0.15s; }
+
   /* ── FILTERS ── */
   .filters-bar { background: var(--bg2); border: 1px solid var(--border); border-radius: 1rem; padding: 1rem 1.5rem; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
   .search-wrap { position: relative; flex: 1; min-width: 200px; }
@@ -269,6 +286,7 @@
   /* page count and publish year in book card */
   .book-pages { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.25rem; }
   .book-pub-year { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.2rem; }
+  .book-translator { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.2rem; }
 
   /* ── BOOK CLUB STICKER ── */
   .book-club-sticker {
@@ -391,7 +409,13 @@
     <div class="charts-grid" style="grid-template-columns: repeat(auto-fit,minmax(260px,1fr))">
       <div class="chart-card" id="fictionBar"></div>
       <div class="chart-card" id="genderBar"></div>
-      <div class="chart-card" id="countryBar"></div>
+    </div>
+
+    <!-- World map of countries of origin -->
+    <div class="chart-card" style="margin-bottom:2rem;">
+      <div class="chart-card-title">🗺️ Countries of Origin</div>
+      <div id="countryMap" style="position:relative;"></div>
+      <div id="countryMapLegend" style="margin-top:0.75rem;"></div>
     </div>
 
     <!-- Publication year chart — full width -->
@@ -433,6 +457,8 @@
 
 <footer>Built with 📚 & ☕ · Data from Google Sheets · Dan's 2026 Reading Challenge</footer>
 
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
 <script>
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDLnokY9AAjmaXbQ4Ofk-jH6eK1mn9bXcgAid1xWU_2MbtoraDDL5IzoEYT7PPT-numSfmt0EJoS6a/pub?gid=1531654911&single=true&output=csv";
 const GOAL = 100;
@@ -444,11 +470,27 @@ let fictionFilterVal = 'all';
 let chartInstances = {};
 let monthlyMode = 'books'; // 'books' or 'pages'
 
-// ── EXTRACT YEAR from pub date string ──
+// ── EXTRACT YEAR from pub date string (supports BC/BCE, AD/CE, and plain years) ──
 function extractYear(str) {
   if (!str) return null;
-  const m = str.match(/\b(\d{4})\b/);
-  return m ? parseInt(m[1]) : null;
+  const s = String(str).trim();
+  let m = s.match(/(\d+)\s*(BCE|BC)\b/i);
+  if (m) return -parseInt(m[1], 10);
+  m = s.match(/(\d+)\s*(CE|AD)\b/i);
+  if (m) return parseInt(m[1], 10);
+  m = s.match(/^-\s*(\d+)/);
+  if (m) return -parseInt(m[1], 10);
+  m = s.match(/\b(\d{4})\b/);
+  if (m) return parseInt(m[1], 10);
+  m = s.match(/\b(\d{1,3})\b/);
+  if (m) return parseInt(m[1], 10);
+  return null;
+}
+
+// ── Format a numeric year (possibly negative for BC) back into a readable label ──
+function formatYear(year) {
+  if (year === null || year === undefined || isNaN(year)) return '-';
+  return year < 0 ? (Math.abs(year) + ' BC') : String(year);
 }
 
 // ── THEME ──
@@ -484,6 +526,7 @@ async function fetchBooks() {
     Country: row[11] || '',
     Pages: parseInt(row[12]) || 0,     // ← Column M (index 12)
     DatePublished: row[13] || '',      // ← Column N (index 13)
+    Translator: (row[14] || '').trim(),// ← Column O (index 14)
     _idx: i
   }));
 }
@@ -507,7 +550,7 @@ function renderStats(finished) {
   const withPages = finished.filter(b => b.Pages > 0);
   const longestBook = withPages.length ? withPages.reduce((a, b) => b.Pages > a.Pages ? b : a) : null;
 
-  // Oldest published book (extract year from DatePublished, handles plain years or date strings)
+  // Oldest published book (extract year from DatePublished, handles BC/BCE, AD/CE, and plain years)
   const withYear = finished.filter(b => extractYear(b.DatePublished) !== null);
   const oldestBook = withYear.length ? withYear.reduce((a, b) => extractYear(b.DatePublished) < extractYear(a.DatePublished) ? b : a) : null;
 
@@ -518,7 +561,7 @@ function renderStats(finished) {
     { label: 'Authors Read',   value: uniqueAuthors, sub: 'unique authors', accent: '#6ba3f5' },
     { label: 'Genres Explored',value: new Set(finished.map(b => b.Genre)).size, sub: 'different genres', accent: '#4dcb8a' },
     { label: 'Longest Book',   value: longestBook ? longestBook.Pages.toLocaleString() : '-', sub: longestBook ? longestBook.Book.slice(0, 22) + (longestBook.Book.length > 22 ? '…' : '') : 'no page data', accent: '#f06292' },
-    { label: 'Oldest Book',    value: oldestBook ? extractYear(oldestBook.DatePublished) : '-', sub: oldestBook ? oldestBook.Book.slice(0, 22) + (oldestBook.Book.length > 22 ? '…' : '') : 'no pub date', accent: '#aed581' },
+    { label: 'Oldest Book',    value: oldestBook ? formatYear(extractYear(oldestBook.DatePublished)) : '-', sub: oldestBook ? oldestBook.Book.slice(0, 22) + (oldestBook.Book.length > 22 ? '…' : '') : 'no pub date', accent: '#aed581' },
   ];
 
   document.getElementById('statGrid').innerHTML = stats.map(s => `
@@ -646,19 +689,20 @@ function renderPubYearChart(finished) {
   const yearCount = {};
   finished.forEach(b => {
     const y = extractYear(b.DatePublished);
-    if (y) yearCount[y] = (yearCount[y] || 0) + 1;
+    if (y !== null) yearCount[y] = (yearCount[y] || 0) + 1;
   });
   if (!Object.keys(yearCount).length) return;
 
   const years = Object.keys(yearCount).map(Number).sort((a, b) => a - b);
   const counts = years.map(y => yearCount[y]);
+  const labels = years.map(formatYear);
 
   if (chartInstances['pubYear']) chartInstances['pubYear'].destroy();
   const ctx = document.getElementById('pubYearChart');
   chartInstances['pubYear'] = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: years,
+      labels,
       datasets: [{
         label: 'Books',
         data: counts,
@@ -701,6 +745,120 @@ function renderSegBar(containerId, title, dataObj) {
   container.innerHTML = `<div class="chart-card-title">${title}</div><div class="seg-bar">${barHTML}</div><div class="seg-legend">${legendHTML}</div>`;
 }
 
+// ── WORLD MAP OF COUNTRIES OF ORIGIN ──
+let worldGeoData = null;
+async function loadWorldGeo() {
+  if (worldGeoData) return worldGeoData;
+  const topology = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+  worldGeoData = topojson.feature(topology, topology.objects.countries);
+  return worldGeoData;
+}
+
+// Common aliases mapping how countries might be typed in the sheet → the name used in the map data
+const COUNTRY_ALIASES = {
+  'usa': 'United States of America', 'us': 'United States of America',
+  'united states': 'United States of America', 'u.s.a.': 'United States of America',
+  'uk': 'United Kingdom', 'england': 'United Kingdom', 'scotland': 'United Kingdom',
+  'wales': 'United Kingdom', 'northern ireland': 'United Kingdom', 'great britain': 'United Kingdom',
+  'south korea': 'South Korea', 'korea': 'South Korea', 'north korea': 'North Korea',
+  'czech republic': 'Czechia', 'czechia': 'Czechia',
+  'ivory coast': "Côte d'Ivoire", "cote d'ivoire": "Côte d'Ivoire",
+  'russia': 'Russia', 'ussr': 'Russia', 'soviet union': 'Russia',
+  'congo': 'Democratic Republic of the Congo', 'drc': 'Democratic Republic of the Congo',
+  'republic of the congo': 'Republic of the Congo', 'congo-brazzaville': 'Republic of the Congo',
+  'bosnia': 'Bosnia and Herzegovina', 'macedonia': 'North Macedonia',
+  'swaziland': 'Eswatini', 'burma': 'Myanmar', 'palestine': 'Palestine',
+  'uae': 'United Arab Emirates', 'tanzania': 'United Republic of Tanzania',
+  'holland': 'Netherlands', 'the netherlands': 'Netherlands',
+};
+
+function normalizeCountryName(name) {
+  if (!name) return null;
+  const key = name.trim().toLowerCase();
+  return COUNTRY_ALIASES[key] || name.trim();
+}
+
+async function renderCountryMap(countryCount) {
+  const container = document.getElementById('countryMap');
+  const legend = document.getElementById('countryMapLegend');
+  if (!Object.keys(countryCount).length) {
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:0.8rem">No country data yet</p>';
+    legend.innerHTML = '';
+    return;
+  }
+  container.innerHTML = '<div class="skeleton" style="height:320px;"></div>';
+
+  let geo;
+  try {
+    geo = await loadWorldGeo();
+  } catch (e) {
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:0.8rem">Map data failed to load — check your connection.</p>';
+    legend.innerHTML = '';
+    return;
+  }
+
+  // Build a lookup of counts keyed by lowercase map country name
+  const countsByName = {};
+  Object.entries(countryCount).forEach(([raw, count]) => {
+    const norm = normalizeCountryName(raw);
+    const key = norm.toLowerCase();
+    countsByName[key] = (countsByName[key] || 0) + count;
+  });
+
+  const maxCount = Math.max(...Object.values(countsByName));
+  const colorScale = d3.scaleLinear().domain([0, maxCount]).range(['#1e2535', '#38bdc4']);
+
+  container.innerHTML = '';
+  const width = container.clientWidth || 600;
+  const height = Math.round(width * 0.52);
+
+  const svg = d3.select(container).append('svg')
+    .attr('viewBox', `0 0 ${width} ${height}`)
+    .attr('width', '100%')
+    .attr('height', height)
+    .style('display', 'block');
+
+  const projection = d3.geoNaturalEarth1().fitSize([width - 4, height - 4], geo);
+  const path = d3.geoPath(projection);
+
+  const tooltip = d3.select(container).append('div').attr('class', 'map-tooltip');
+
+  svg.append('g')
+    .selectAll('path')
+    .data(geo.features)
+    .join('path')
+    .attr('d', path)
+    .attr('fill', d => {
+      const c = countsByName[(d.properties.name || '').toLowerCase()];
+      return c ? colorScale(c) : 'rgba(255,255,255,0.06)';
+    })
+    .attr('stroke', 'rgba(255,255,255,0.12)')
+    .attr('stroke-width', 0.5)
+    .on('mousemove', function (event, d) {
+      const c = countsByName[(d.properties.name || '').toLowerCase()];
+      if (!c) { tooltip.style('opacity', 0); return; }
+      const rect = container.getBoundingClientRect();
+      tooltip.style('opacity', 1)
+        .html(`<strong>${d.properties.name}</strong>: ${c} book${c !== 1 ? 's' : ''}`)
+        .style('left', (event.clientX - rect.left + 12) + 'px')
+        .style('top', (event.clientY - rect.top + 8) + 'px');
+      d3.select(this).attr('stroke', '#38bdc4').attr('stroke-width', 1.3);
+    })
+    .on('mouseleave', function () {
+      tooltip.style('opacity', 0);
+      d3.select(this).attr('stroke', 'rgba(255,255,255,0.12)').attr('stroke-width', 0.5);
+    });
+
+  legend.innerHTML = `
+    <div style="display:flex;align-items:center;gap:0.6rem;font-size:0.75rem;color:var(--text-muted);flex-wrap:wrap;">
+      <span>0</span>
+      <div style="width:140px;height:10px;border-radius:4px;background:linear-gradient(90deg, #1e2535, #38bdc4);border:1px solid var(--border);"></div>
+      <span>${maxCount} book${maxCount !== 1 ? 's' : ''}</span>
+      <span style="margin-left:0.25rem;color:var(--text-dim)">· hover a country for details</span>
+    </div>
+  `;
+}
+
 // ── CURRENTLY READING ──
 function renderCurrentlyReading(current) {
   const section = document.getElementById('currentlySection');
@@ -733,6 +891,12 @@ function bookCardHTML(b, isCurrent = false) {
     ? `<div class="book-pub-year">📅 Published ${b.DatePublished}</div>`
     : '';
 
+  // Only show a translator credit for books not originally published in English
+  const isTranslated = b.Translator && b.Language && b.Language.toLowerCase() !== 'english';
+  const translatorHTML = isTranslated
+    ? `<div class="book-translator">🌐 Translated by ${b.Translator}</div>`
+    : '';
+
   return `
     <div class="book-card">
       <div class="book-card-inner">
@@ -752,6 +916,7 @@ function bookCardHTML(b, isCurrent = false) {
           ${b.Country ? `<div style="font-size:0.72rem;color:var(--text-dim)">📍 ${b.Country}</div>` : ''}
           ${pagesHTML}
           ${pubYearHTML}
+          ${translatorHTML}
         </div>
       </div>
       <div class="book-footer">
@@ -795,8 +960,8 @@ function renderBookGrid() {
   else if (sort === 'title')       books = books.slice().sort((a, b) => a.Book.localeCompare(b.Book));
   else if (sort === 'pages-high')  books = books.slice().sort((a, b) => (b.Pages||0) - (a.Pages||0));
   else if (sort === 'pages-low')   books = books.slice().sort((a, b) => (a.Pages||0) - (b.Pages||0));
-  else if (sort === 'pub-oldest')  books = books.slice().sort((a, b) => (extractYear(a.DatePublished)||9999) - (extractYear(b.DatePublished)||9999));
-  else if (sort === 'pub-newest')  books = books.slice().sort((a, b) => (extractYear(b.DatePublished)||0) - (extractYear(a.DatePublished)||0));
+  else if (sort === 'pub-oldest')  books = books.slice().sort((a, b) => (extractYear(a.DatePublished) ?? 9999) - (extractYear(b.DatePublished) ?? 9999));
+  else if (sort === 'pub-newest')  books = books.slice().sort((a, b) => (extractYear(b.DatePublished) ?? -9999) - (extractYear(a.DatePublished) ?? -9999));
 
   document.getElementById('resultsCount').textContent = `${books.length} book${books.length !== 1 ? 's' : ''}`;
   const grid = document.getElementById('bookGrid');
@@ -837,7 +1002,7 @@ async function init() {
     renderMonthlyChart(finishedBooks);
     renderSegBar('fictionBar', '📖 Fiction vs Non-Fiction', fictionCount);
     renderSegBar('genderBar', '✍️ Author Gender', genderCount);
-    renderSegBar('countryBar', '🗺️ Country of Origin', countryCount);
+    renderCountryMap(countryCount);
     renderPubYearChart(finishedBooks);
 
     const sel = document.getElementById('genreFilter');
